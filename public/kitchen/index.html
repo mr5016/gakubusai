@@ -1,163 +1,89 @@
 <!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>調理場 | お好み焼き注文一覧</title>
+</svg>
+受付 <span id="conn" class="badge">接続中...</span>
+</h1>
 
-  <!-- Firebase (Realtime Database only) -->
-  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
-  <!-- エミュレータ使用時は ?useEmulator=true、本番は外す -->
-  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
-  <style>
-    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4; --muted:#8b5e34; }
-    *{box-sizing:border-box}
-    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
-    .wrap{width:min(960px,100%); margin:0 auto; display:grid; gap:16px}
-    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
-    nav a{margin-right:12px; color:var(--muted)}
-    h1{margin:0 0 8px}
-    table{width:100%; border-collapse:collapse}
-    th,td{padding:8px; border-bottom:1px solid #eadfcf}
-    .muted{color:var(--muted)}
-    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
-    input{font:inherit; padding:8px 10px; border-radius:10px; border:2px solid var(--ring); background:#fff}
-  </style>
-</head>
-<body>
-  <div class="wrap">
-    <nav><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <strong>調理場</strong></nav>
-    <h1>調理場</h1>
+<div class="row"><input id="name" placeholder="お名前（呼び出しに便利）"></div>
 
-    <section class="card">
-      <div class="row">
-        <strong>合計個数:</strong>
-        <span id="total" style="font-size:20px; font-weight:800">0</span>
-        <span class="muted" id="countInfo" aria-live="polite"></span>
-        <span style="flex:1"></span>
-        <input id="q" placeholder="時刻(HH:MM)でフィルタ例: 12:3">
-      </div>
-    </section>
 
-    <section class="card" role="region" aria-label="注文一覧">
-      <table>
-        <thead>
-          <tr><th>時刻</th><th style="text-align:right">個数</th></tr>
-        </thead>
-        <tbody id="tbody"></tbody>
-      </table>
-    </section>
-  </div>
+<div class="items" id="menu-list">
+<div class="line">
+<select class="item">
+<option>お好み焼き(豚)</option>
+<option>お好み焼き(いか)</option>
+<option>焼きそば</option>
+<option>ドリンク</option>
+</select>
+<input class="qty" type="number" min="1" value="1">
+<input class="note" placeholder="備考（辛め、マヨ少なめ 等）">
+</div>
+</div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const db = firebase.database();
-      const tbody = document.getElementById('tbody');
-      const rowMap = new Map(); // id -> tr
-      const $ = (id) => document.getElementById(id);
 
-      let total = 0;
+<div class="row" style="justify-content:space-between">
+<button id="add" class="btn sec" type="button">＋ 行を追加</button>
+<button id="submit" class="btn" type="button">注文を登録</button>
+</div>
+</div>
+</div>
 
-      // 最新から最大500件を監視（必要なら増減OK）
-      const ref = db.ref('okonomiOrders').limitToLast(500);
 
-      // 追加時
-      ref.on('child_added', snap => {
-        const id = snap.key, x = snap.val();
-        upsertRow(id, x, true);
-        total += (x.count || 0);
-        updateTotal();
-      });
+<script src="/app/shared.js"></script>
+<script>
+const connEl = document.getElementById('conn');
+bindConnectionBadge(connEl);
 
-      // 変更時（数の修正などがあった場合）
-      ref.on('child_changed', snap => {
-        const id = snap.key, x = snap.val();
-        const before = Number(rowMap.get(id)?.dataset.count || 0);
-        upsertRow(id, x, false);
-        total += (x.count||0) - before;
-        updateTotal();
-      });
 
-      // 削除時
-      ref.on('child_removed', snap => {
-        const id = snap.key;
-        const tr = rowMap.get(id);
-        if (tr) {
-          total -= Number(tr.dataset.count||0);
-          tr.remove();
-          rowMap.delete(id);
-          updateTotal();
-          updateShownCount();
-        }
-      });
+document.getElementById('add').onclick = () => {
+const row = document.querySelector('#menu-list .line').cloneNode(true);
+row.querySelector('.qty').value = 1; row.querySelector('.note').value = '';
+document.getElementById('menu-list').appendChild(row);
+};
 
-      // 表示の簡易フィルタ（時刻文字列に含まれるか）
-      $('q').addEventListener('input', applyFilter);
 
-      function applyFilter(){
-        const q = $('q').value.trim();
-        let shown = 0;
-        rowMap.forEach(tr => {
-          const t = tr.dataset.time || '';
-          const ok = !q || t.includes(q);
-          tr.style.display = ok ? '' : 'none';
-          if (ok) shown++;
-        });
-        updateShownCount(shown);
-      }
+async function collectForm(){
+const name = document.getElementById('name').value.trim();
+const rows = Array.from(document.querySelectorAll('#menu-list .line'));
+const menu = rows.map(r=>({
+item: r.querySelector('.item').value,
+qty: parseInt(r.querySelector('.qty').value || '0',10),
+note: r.querySelector('.note').value.trim()
+})).filter(x=>x.qty>0);
+if(menu.length===0) throw new Error('品目がありません');
+return { name, menu };
+}
 
-      function upsertRow(id, x, prepend){
-        let tr = rowMap.get(id);
-        if (!tr) {
-          tr = document.createElement('tr');
-          tr.id = 'row-'+id;
-          tr.innerHTML = `<td class="time"></td><td class="count" style="text-align:right"></td>`;
-          if (prepend) tbody.prepend(tr); else tbody.appendChild(tr);
-          rowMap.set(id, tr);
-        }
-        const time = formatTime(x.createdAt);
-        tr.dataset.time = time;
-        tr.dataset.count = Number(x.count||0);
-        tr.querySelector('.time').textContent = time;
-        tr.querySelector('.count').textContent = x.count || 0;
 
-        // 右クリックで削除（必要なときだけ使ってください）
-        tr.oncontextmenu = async (e) => {
-          e.preventDefault();
-          if (confirm(`${time} の注文 (${x.count||0}個) を削除しますか？`)) {
-            await firebase.database().ref('okonomiOrders/'+id).remove();
-          }
-        };
+let sending = false;
+document.getElementById('submit').onclick = async () => {
+if(sending) return; sending = true;
+const btn = document.getElementById('submit');
+btn.disabled = true; btn.textContent = '送信中...';
 
-        applyFilter();
-      }
 
-      function formatTime(ts){
-        if (!ts) return '';
-        const d = new Date(ts);
-        const hh = String(d.getHours()).padStart(2,'0');
-        const mm = String(d.getMinutes()).padStart(2,'0');
-        const ss = String(d.getSeconds()).padStart(2,'0');
-        return `${hh}:${mm}:${ss}`;
-        // 日付も要るなら `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()} ${hh}:${mm}:${ss}`
-      }
-
-      function updateTotal(){
-        $('total').textContent = total;
-      }
-
-      function updateShownCount(n){
-        // 表示件数（filterのたびに更新）
-        if (typeof n === 'undefined') {
-          let c = 0; rowMap.forEach(tr => { if (tr.style.display !== 'none') c++; });
-          n = c;
-        }
-        $('countInfo').textContent = `（表示中: ${n}件）`;
-      }
-    });
-  </script>
+try{
+const { name, menu } = await collectForm();
+const orderNo = await allocateOrderNo();
+const ordersRef = firebase.database().ref('orders');
+const newRef = ordersRef.push();
+await newRef.set({
+orderNo,
+name,
+menu,
+status: 'new',
+createdAt: serverTimestamp(),
+updatedAt: serverTimestamp()
+});
+toast(`注文 #${orderNo} を登録しました`);
+document.getElementById('name').value='';
+document.querySelectorAll('#menu-list .line').forEach((r,i)=>{ if(i>0) r.remove(); });
+}catch(err){
+console.error(err); toast(err.message||'保存に失敗しました', false);
+}finally{
+sending = false; btn.disabled=false; btn.textContent='注文を登録';
+}
+};
+</script>
 </body>
 </html>
