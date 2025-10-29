@@ -4,9 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>受付 | 学部祭</title>
+
+  <!-- Firebase (compat) を Hosting の自動 init と併用 -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-firestore-compat.js"></script>
+  <!-- ローカルの Emulator Suite 利用時は ?useEmulator=true を付ける（本番では無視されます） -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
@@ -75,53 +78,84 @@
   </div>
 
   <script>
-document.addEventListener('DOMContentLoaded', () => {
-  // ここから中身（↓あなたのコード↓）
-
-  // Firestore参照（firebaseが確実に定義済みのタイミングで実行）
-  const db = firebase.firestore();
-
-  // UI
-  let qty = 1;
-  const countEl = document.getElementById('count');
-  const toastEl = document.getElementById('toast');
-  const submitBtn = document.getElementById('submit');
-  const minusBtn = document.getElementById('minus');
-  const plusBtn  = document.getElementById('plus');
-
-  function render(){ countEl.textContent = qty }
-
-  // 念のため既定動作をブロック（フォームに入れても安全）
-  const safe = (fn) => (e) => { e?.preventDefault?.(); fn(e); };
-
-  minusBtn.addEventListener('click', safe(() => { qty = Math.max(1, qty-1); render(); }));
-  plusBtn .addEventListener('click', safe(() => { qty = Math.min(99, qty+1); render(); }));
-
-  submitBtn.addEventListener('click', safe(async () => {
-    submitBtn.disabled = true;
-    try{
-      const ref = await db.collection('orders').add({
-        qty,
-        status: 'new',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    // Firebase の初期化が完了するまで待ってから実行
+    document.addEventListener('DOMContentLoaded', () => {
+      waitForFirebase().then(runApp).catch((e) => {
+        console.error('Firebase 初期化待機中に失敗:', e);
+        alert('初期化に失敗しました。ページを再読み込みしてください。');
       });
-      qty = 1; render();
-      toastEl.textContent = `注文を登録しました（ID: ${ref.id.slice(0,6)}…）`;
-      toastEl.style.display = 'block';
-      setTimeout(()=> toastEl.style.display='none', 2000);
-    }catch(e){
-      alert('注文の登録に失敗しました: ' + (e?.message || e));
-      console.error(e);
-    }finally{
-      submitBtn.disabled = false;
+    });
+
+    // firebase.app() が使えるまで待つ（init.js の完了待ち）
+    function waitForFirebase(timeoutMs = 5000) {
+      const start = Date.now();
+      return new Promise((resolve, reject) => {
+        (function tick() {
+          try {
+            if (window.firebase && firebase.app) {
+              // app が取得できるときに解決
+              const app = firebase.app();
+              if (app) return resolve(app);
+            }
+          } catch(_) { /* まだ初期化前 */ }
+          if (Date.now() - start > timeoutMs) return reject(new Error('timeout'));
+          setTimeout(tick, 50);
+        })();
+      });
     }
-  }));
 
-  render();
+    async function runApp() {
+      // Firestore (compat)
+      const db = firebase.firestore();
 
-  // ここまで（↑あなたのコード↑）
-});
-</script>
+      // もし自分でエミュレータへ繋ぎたい場合は以下（init.js?useEmulator=true を使うなら通常不要）
+      // if (location.hostname === 'localhost') {
+      //   try { db.useEmulator('127.0.0.1', 8080); } catch(_) {}
+      // }
 
+      // UI
+      let qty = 1;
+      const countEl  = document.getElementById('count');
+      const toastEl  = document.getElementById('toast');
+      const submitBtn= document.getElementById('submit');
+      const minusBtn = document.getElementById('minus');
+      const plusBtn  = document.getElementById('plus');
+
+      const render = () => { countEl.textContent = qty };
+
+      const safe = (fn) => (e) => { e?.preventDefault?.(); fn(e); };
+
+      minusBtn.addEventListener('click', safe(() => { qty = Math.max(1, qty - 1); render(); }));
+      plusBtn .addEventListener('click', safe(() => { qty = Math.min(99, qty + 1); render(); }));
+
+      submitBtn.addEventListener('click', safe(async () => {
+        if (submitBtn.disabled) return;
+        if (!Number.isInteger(qty) || qty < 1 || qty > 99) {
+          alert('1〜99 の範囲で数量を入力してください'); return;
+        }
+        submitBtn.disabled = true;
+
+        try {
+          const ref = await db.collection('orders').add({
+            qty,
+            status: 'new',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          });
+
+          qty = 1; render();
+          toastEl.textContent = `注文を登録しました（ID: ${ref.id.slice(0,6)}…）`;
+          toastEl.style.display = 'block';
+          setTimeout(() => { toastEl.style.display = 'none'; }, 2000);
+        } catch (e) {
+          console.error(e);
+          alert('注文の登録に失敗しました: ' + (e?.message || e));
+        } finally {
+          submitBtn.disabled = false;
+        }
+      }));
+
+      render();
+    }
+  </script>
 </body>
 </html>
