@@ -1,4 +1,18 @@
 <!DOCTYPE html>
+/* ◆ 大きいカウンターUI */
+.counter{display:grid; grid-template-columns:1fr auto 1fr; gap:14px; align-items:center; margin-top:10px}
+.qty-btn{display:flex; align-items:center; justify-content:center; width:96px; height:96px; border-radius:16px; border:2px solid var(--ring); background:#fff; font-weight:900; font-size:42px; cursor:pointer; user-select:none; box-shadow:0 6px 16px rgba(0,0,0,.06)}
+.qty-btn:active{transform:translateY(1px)}
+.qty-display{display:flex; align-items:center; justify-content:center; width:160px; height:160px; border-radius:20px; border:3px solid var(--accent-2); background:#fffaf5; font-weight:900; font-size:64px; letter-spacing:1px; box-shadow:0 10px 24px rgba(255,145,77,.25)}
+
+
+.row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0}
+select,input[type="number"],button{font:inherit; padding:12px 14px; border-radius:14px; border:2px solid var(--ring); background:#fff}
+select{font-weight:800}
+button.btn{cursor:pointer; border:none; background:var(--accent); color:#fff; font-weight:900; padding:14px 18px; border-radius:16px; box-shadow:0 6px 16px rgba(255,145,77,.35)}
+button.btn:disabled{opacity:.6; cursor:not-allowed}
+ul{margin:0; padding-left:1.2em}
+.stamp{font-variant-numeric:tabular-nums}
 <html lang="ja">
 <head>
   <meta charset="utf-8" />
@@ -35,21 +49,40 @@
     <nav><a href="/index.html">🏠 トップ</a> / <strong>受付</strong> / <a href="/kitchen.html">調理場</a></nav>
     <h1>受付</h1>
 
-    <section class="card" aria-labelledby="okonomi-title">
-      <h2 id="okonomi-title">お好み焼きの注文</h2>
-      <p class="muted">注文された <b>お好み焼きの個数</b> を入力して保存します。</p>
-      <div class="row" style="margin-top:8px">
-        <label for="count">個数</label>
-        <input id="count" type="number" min="1" step="1" value="1" />
-        <button id="orderBtn" class="btn">注文を保存</button>
-      </div>
-      <p id="last" class="muted" aria-live="polite" style="margin-top:10px"></p>
-    </section>
+    <section class="card" aria-labelledby="order-title">
+  <h2 id="order-title">注文</h2>
+  <p class="muted">品目を選び、<b>大きなカウンター</b>で個数を調整して保存します。</p>
 
-    <section class="card">
-      <h2>直近の送信ログ</h2>
-      <ul id="log"></ul>
-    </section>
+  <!-- 品目選択（何を） -->
+  <div class="row">
+    <label for="item">品目</label>
+    <select id="item">
+      <option value="お好み焼き(豚)">お好み焼き(豚)</option>
+      <option value="お好み焼き(いか)">お好み焼き(いか)</option>
+      <option value="焼きそば">焼きそば</option>
+      <option value="ドリンク">ドリンク</option>
+    </select>
+  </div>
+
+  <!-- 大きいカウンター（何個） -->
+  <div class="counter" aria-label="個数カウンター">
+    <div id="minus" class="qty-btn" role="button" aria-label="減らす" tabindex="0">−</div>
+    <div id="qty" class="qty-display" aria-live="polite">1</div>
+    <div id="plus" class="qty-btn" role="button" aria-label="増やす" tabindex="0">＋</div>
+  </div>
+
+  <div class="row" style="justify-content:space-between; margin-top:14px">
+    <span class="muted">選択中：<b id="previewItem">お好み焼き(豚)</b> × <b id="previewQty">1</b></span>
+    <button id="orderBtn" class="btn">注文を保存</button>
+  </div>
+
+  <p id="last" class="muted stamp" aria-live="polite" style="margin-top:10px"></p>
+</section>
+
+<section class="card">
+  <h2>直近の送信ログ</h2>
+  <ul id="log"></ul>
+</section>
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
