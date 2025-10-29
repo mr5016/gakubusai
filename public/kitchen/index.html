@@ -4,98 +4,153 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>調理場 | 学部祭</title>
+
+  <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34;
-      --accent:#fb923c; --accent-strong:#f97316; --ring:#fdba74; --soft:#ffedd5;
-    }
+    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; --accent:#ff914d; }
     *{box-sizing:border-box}
-    body{
-      margin:0; padding:24px; color:var(--ink);
-      font-family:"M PLUS Rounded 1c", system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
-      background:radial-gradient(900px 520px at 0% -10%, #ffe7c7 0%, rgba(255,231,199,0) 60%), var(--bg);
-    }
-    .wrap{max-width:900px; margin:0 auto}
-    .head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
-    a{color:var(--accent-strong); font-weight:800; text-decoration:none} a:hover{text-decoration:underline}
-    .title{display:flex; align-items:center; gap:10px}
-    .title h1{margin:0; font-size:clamp(22px,3.2vw,34px)}
-    .okonomi{width:48px;height:48px}
-    .card{background:#fff; border:2px solid var(--ring); border-radius:24px; padding:18px; box-shadow:0 14px 42px rgba(249,115,22,.12)}
-    .big{font-size:48px; font-weight:800; margin:0}
-    .muted{color:var(--muted); font-size:13px}
-    .list{margin-top:12px}
-    .item{
-      padding:10px 12px; border:2px solid var(--ring); border-radius:14px; background:#fffdf9;
-      display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
-    }
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
+    .container{width:min(1100px,100%); margin:0 auto; display:grid; gap:16px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
+    h1{margin:0 0 8px}
+    .muted{color:var(--muted)}
+    table{width:100%; border-collapse:collapse}
+    th,td{padding:8px; border-bottom:1px solid #eadfcf}
+    .badge{display:inline-block; background:#eee; padding:2px 8px; border-radius:999px}
+    button{font:inherit; padding:6px 10px; border-radius:10px; border:2px solid var(--ring); background:#fff; cursor:pointer}
+    button.primary{background:var(--accent); color:#fff; border:none}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    nav a{margin-right:12px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="head">
-      <div class="title">
-        <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-          <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-          <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-          <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-          <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6"/>
-          <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-          <path d="M30,52 q6,-6 12,0 q-6,6 -12,0Z" fill="#ffe6c7" opacity=".8"/>
-        </svg>
-        <h1>🍳 調理場</h1>
+  <div class="container">
+    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <strong>調理場</strong> / <a href="/confirm.html">予約確認</a></nav>
+    <h1>調理場</h1>
+
+    <div class="card">
+      <div class="row" style="align-items:center">
+        <strong>フィルタ:</strong>
+        <select id="filter">
+          <option value="">すべて</option>
+          <option value="pending">未確定</option>
+          <option value="confirmed">確定</option>
+          <option value="seated">着席</option>
+          <option value="canceled">取消</option>
+        </select>
+        <input id="q" placeholder="名前で検索">
+        <button id="reload">再読み込み</button>
+        <span id="count" class="muted" aria-live="polite"></span>
       </div>
-      <div><a href="/">← 管理ポータル</a></div>
     </div>
 
-    <div class="card" role="region" aria-label="注文合計">
-      <p class="muted">受付から登録されたお好み焼きの<strong>合計個数</strong>を表示します（キャンセル除外）。</p>
-      <p class="big" id="total">0</p>
-    </div>
-
-    <div class="card" style="margin-top:12px" role="region" aria-label="最新の注文">
-      <p class="muted">最新の注文（20件まで）</p>
-      <div id="list" class="list" aria-live="polite"></div>
+    <div class="card" role="region" aria-label="予約一覧">
+      <table>
+        <thead>
+          <tr>
+            <th>時刻</th><th>名前</th><th style="text-align:right">人数</th><th>状態</th><th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
     </div>
   </div>
 
   <script>
-  const db = firebase.firestore();
-  const totalEl = document.getElementById('total');
-  const listEl  = document.getElementById('list');
+    document.addEventListener('DOMContentLoaded', () => {
+      const db = firebase.database();
+      const tbody = document.getElementById('tbody');
+      const rowMap = new Map();
+      const $ = id => document.getElementById(id);
 
-  // 【重要】 where('!=', 'canceled') はインデックスや制約でハマりやすいので使わず、
-  // 全件購読→クライアント側で除外にします。
-  db.collection('orders')
-    .orderBy('createdAt', 'desc')
-    .limit(100) // 必要に応じて拡張
-    .onSnapshot((snap) => {
-      let total = 0;
-      const items = [];
+      // リッスン開始
+      const ref = db.ref('reservations').limitToLast(500);
+      ref.on('child_added', snap => upsertRow(snap.key, snap.val(), true));
+      ref.on('child_changed', snap => upsertRow(snap.key, snap.val(), false));
+      ref.on('child_removed', snap => { const tr = rowMap.get(snap.key); if (tr) tr.remove(); rowMap.delete(snap.key); updateCount(); });
 
-      snap.forEach(doc => {
-        const x = doc.data();
-        if (x.status !== 'canceled') {
-          total += Number(x.qty || 0);
+      // 手元フィルタ
+      const applyFilter = () => {
+        const f = $('filter').value;
+        const q = $('q').value.trim();
+        let shown = 0;
+        rowMap.forEach(tr => {
+          const name = tr.dataset.name || '';
+          const status = tr.dataset.status || '';
+          const okStatus = !f || status === f;
+          const okName = !q || name.includes(q);
+          tr.style.display = (okStatus && okName) ? '' : 'none';
+          if (tr.style.display !== 'none') shown++;
+        });
+        $('count').textContent = `表示件数: ${shown}`;
+      };
+      $('filter').addEventListener('change', applyFilter);
+      $('q').addEventListener('input', applyFilter);
+      $('reload').addEventListener('click', () => location.reload());
+
+      function upsertRow(id, x, prepend){
+        let tr = rowMap.get(id);
+        if(!tr){
+          tr = document.createElement('tr');
+          tr.id = 'row-'+id;
+          tr.innerHTML = `
+            <td class="time"></td>
+            <td class="name"></td>
+            <td class="party" style="text-align:right"></td>
+            <td class="status"></td>
+            <td class="ops"></td>
+          `;
+          if (prepend) tbody.prepend(tr); else tbody.appendChild(tr);
+          rowMap.set(id, tr);
         }
-        const t = x.createdAt?.toDate?.() || new Date();
-        items.push(
-          `<div class="item"><span>🍽️ ${x.qty} 個</span><span class="muted">${t.toLocaleString()}</span></div>`
-        );
-      });
+        tr.dataset.name = x.name || '';
+        tr.dataset.status = x.status || '';
+        fill(tr, id, x);
+        applyFilter();
+      }
 
-      totalEl.textContent = total;
-      listEl.innerHTML = items.join('');
-    }, (err) => {
-      alert('注文の購読に失敗しました: ' + (err?.message || err));
-      console.error(err);
+      function fill(tr, id, x){
+        tr.querySelector('.time').textContent = x.timeSlot || '';
+        tr.querySelector('.name').textContent = x.name || '';
+        tr.querySelector('.party').textContent = x.partySize ?? '';
+        tr.querySelector('.status').innerHTML = `<span class="badge">${x.status || ''}</span>`;
+
+        const ops = tr.querySelector('.ops');
+        ops.innerHTML = '';
+        for (const [label, next, cls] of [
+          ['確定','confirmed','primary'],
+          ['着席','seated',''],
+          ['未確定','pending',''],
+          ['取消','canceled',''],
+        ]) {
+          const b = document.createElement('button');
+          b.textContent = label; if (cls) b.classList.add(cls); b.style.marginRight='6px';
+          b.addEventListener('click', async () => {
+            await firebase.database().ref(`reservations/${id}/status`).set(next);
+          });
+          ops.appendChild(b);
+        }
+
+        // 右クリックで削除（誤操作防止でconfirm）
+        tr.oncontextmenu = async (e) => {
+          e.preventDefault();
+          if (confirm(`この予約を削除しますか？\n${x.timeSlot} / ${x.name}（${x.partySize}名）`)) {
+            await firebase.database().ref('reservations/'+id).remove();
+          }
+        };
+      }
+
+      function updateCount(){
+        let n = 0;
+        rowMap.forEach(tr => { if (tr.style.display !== 'none') n++; });
+        $('count').textContent = `表示件数: ${n}`;
+      }
     });
-</script>
+  </script>
 </body>
 </html>

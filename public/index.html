@@ -1,92 +1,80 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>学部祭 管理ポータル</title>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>予約確認 | 学部祭</title>
 
-    <!-- Firebase compat SDKs -->
-    <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
-    <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
-    <script defer src="/__/firebase/12.4.0/firebase-firestore-compat.js"></script>
-    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+  <!-- Firebase (Realtime Database only) -->
+  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-    <!-- 丸めフォント -->
-    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
-    <style>
-      :root{
-        --bg:#fff7ed; --paper:#fff; --ink:#3f2817; --muted:#8b5e34;
-        --accent:#fb923c; --accent-strong:#f97316; --ring:#fdba74; --soft:#ffedd5;
-      }
-      *{box-sizing:border-box} html,body{height:100%}
-      body{
-        margin:0; font-family:"M PLUS Rounded 1c", system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP","Yu Gothic",Meiryo, sans-serif;
-        color:var(--ink);
-        background:
-          radial-gradient(1000px 600px at 10% -10%, #ffe7c7 0%, rgba(255,231,199,0) 60%),
-          radial-gradient(1200px 700px at 110% 0%, #ffd6a8 0%, rgba(255,214,168,0) 60%),
-          var(--bg);
-        display:grid; place-items:center; padding:28px;
-      }
-      .card{width:min(860px,94vw); background:var(--paper); border:2px solid var(--ring);
-        border-radius:28px; padding:28px 24px; box-shadow:0 20px 60px rgba(249,115,22,.15);}
-      .title{display:flex; align-items:center; gap:12px}
-      .title h1{margin:0; font-size:clamp(22px,3.4vw,36px); line-height:1.1}
-      .grid{display:grid; gap:16px; grid-template-columns:1fr 1fr; margin-top:18px}
-      @media(max-width:640px){.grid{grid-template-columns:1fr}}
-      .btn{
-        display:flex; flex-direction:column; align-items:center; gap:10px; text-decoration:none;
-        padding:22px; border-radius:22px; border:2px solid var(--ring);
-        background:linear-gradient(180deg,#fff7ed,#fffdf9 60%,#fff);
-        color:var(--ink); font-weight:800; font-size:clamp(18px,2.6vw,22px);
-        box-shadow:0 14px 0 #ffd3a8, 0 28px 28px rgba(249,115,22,.12);
-        transition:transform .06s, box-shadow .2s, filter .2s;
-      }
-      .btn:hover{transform:translateY(2px); box-shadow:0 8px 0 #ffd3a8, 0 18px 18px rgba(249,115,22,.12)}
-      .btn small{font-weight:600; color:var(--muted)}
-      .okonomi{width:84px; height:84px}
-      .muted{color:var(--muted); font-size:13px}
-    </style>
-  </head>
-  <body>
-    <main class="card">
-      <div class="title">
-        <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-          <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-          <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-          <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-          <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6" stroke-linecap="round"/>
-          <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-          <path d="M30,52 q6,-6 12,0 q-6,6 -12,0Z" fill="#ffe6c7" opacity=".8"/>
-        </svg>
-        <h1>学部祭 管理ポータル</h1>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; }
+    *{box-sizing:border-box}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
+    .container{width:min(800px,100%); margin:0 auto; display:grid; gap:16px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
+    h1{margin:0 0 8px}
+    .muted{color:var(--muted)}
+    input,button{font:inherit; padding:10px 12px; border-radius:12px; border:2px solid var(--ring); background:#fff}
+    button{cursor:pointer}
+    nav a{margin-right:12px}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <a href="/kitchen.html">調理場</a> / <strong>予約確認</strong></nav>
+    <h1>予約確認</h1>
+
+    <div class="card">
+      <p class="muted">予約ID（受付で出た文字列）か、<b>お名前＋時刻</b>で検索できます。</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px">
+        <input id="qId" placeholder="予約ID（任意）">
+        <input id="qName" placeholder="お名前（部分一致OK）">
+        <input id="qTime" type="datetime-local" aria-label="来場時刻（任意）">
+        <button id="search">検索</button>
       </div>
-      <p class="muted">用途を選んでください（受付／調理場）。</p>
+      <div id="result" aria-live="polite"></div>
+    </div>
+  </div>
 
-      <div class="grid" aria-label="機能選択">
-        <a class="btn" href="/reception/index.html" aria-label="受付ページへ">
-          <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-            <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-            <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-            <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-            <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6"/>
-            <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-          </svg>
-          受付
-          <small>数量入力 → 注文登録</small>
-        </a>
-        <a class="btn" href="/kitchen/index.html" aria-label="調理場ページへ">
-          <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-            <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-            <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-            <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-            <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6"/>
-            <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-          </svg>
-          調理場
-          <small>注文合計を確認</small>
-        </a>
-      </div>
-    </main>
-  </body>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const db = firebase.database();
+      const $ = (id) => document.getElementById(id);
+
+      $('search').addEventListener('click', search);
+      async function search(){
+        const qId = $('qId').value.trim();
+        const qName = $('qName').value.trim();
+        const qTime = $('qTime').value ? $('qTime').value.replace('T',' ').slice(0,16) : '';
+
+        const blocks = [];
+        if(qId){
+          const snap = await db.ref('reservations/'+qId).get();
+          if (snap.exists()) blocks.push(render(qId, snap.val()));
+        }else{
+          const snap = await db.ref('reservations').limitToLast(1000).get();
+          snap.forEach(child => {
+            const x = child.val();
+            const okName = qName ? (x.name||'').includes(qName) : true;
+            const okTime = qTime ? x.timeSlot === qTime : true;
+            if (okName && okTime) blocks.push(render(child.key, x));
+          });
+        }
+        $('result').innerHTML = blocks.length ? blocks.join('') : '該当なし';
+      }
+
+      function render(id, x){
+        return `<div style="border:1px solid #eadfcf; border-radius:12px; padding:12px; margin:8px 0">
+          <div><strong>${x.timeSlot||''}</strong>　${(x.name||'')}（${x.partySize||0}名）</div>
+          <div>状態: <b>${x.status||''}</b>　<span class="muted">ID: ${id}</span></div>
+        </div>`;
+      }
+    });
+  </script>
+</body>
 </html>

@@ -5,157 +5,107 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>受付 | 学部祭</title>
 
-  <!-- Firebase (compat) を Hosting の自動 init と併用 -->
+  <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-firestore-compat.js"></script>
-  <!-- ローカルの Emulator Suite 利用時は ?useEmulator=true を付ける（本番では無視されます） -->
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34;
-      --accent:#fb923c; --accent-strong:#f97316; --ring:#fdba74; --soft:#ffedd5;
+      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; --accent:#ff914d;
     }
     *{box-sizing:border-box}
+    html,body{height:100%}
     body{
-      margin:0; padding:24px; color:var(--ink);
-      font-family:"M PLUS Rounded 1c", system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP","Yu Gothic",Meiryo,sans-serif;
-      background:radial-gradient(900px 520px at 0% -10%, #ffe7c7 0%, rgba(255,231,199,0) 60%), var(--bg);
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
+      line-height:1.6; padding:20px;
+      display:grid; place-items:start center;
     }
-    .wrap{max-width:720px; margin:0 auto}
-    .head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px}
-    a{color:var(--accent-strong); font-weight:800; text-decoration:none} a:hover{text-decoration:underline}
-    .title{display:flex; align-items:center; gap:10px}
-    .title h1{margin:0; font-size:clamp(22px,3.2vw,34px)}
-    .okonomi{width:48px;height:48px}
-    .card{background:#fff; border:2px solid var(--ring); border-radius:24px; padding:18px; box-shadow:0 14px 42px rgba(249,115,22,.12)}
-    .row{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
-    .qty{
-      display:flex; align-items:center; gap:10px; padding:10px; border:2px solid var(--ring); border-radius:16px; background:#fffdf9;
-      font-weight:800; font-size:22px;
+    .container{width:min(960px,100%); display:grid; gap:16px}
+    .card{
+      background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px;
+      box-shadow: 0 2px 0 rgba(0,0,0,.04);
     }
-    .btn{
-      padding:12px 16px; border-radius:14px; border:2px solid var(--ring);
-      background:linear-gradient(180deg,#fff,#fffaf5); color:var(--ink); cursor:pointer; font-weight:800;
-      box-shadow:0 8px 0 #ffd3a8; transition:transform .06s, box-shadow .06s;
+    h1{margin:0 0 8px; font-weight:800}
+    h2{margin:8px 0; font-size:18px}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    input,button,select{
+      font:inherit; padding:10px 12px; border-radius:12px; border:2px solid var(--ring); background:#fff;
     }
-    .btn:hover{transform:translateY(1px); box-shadow:0 4px 0 #ffd3a8}
-    .big{font-size:22px}
-    .muted{color:var(--muted); font-size:13px}
-    .toast{margin-top:10px; padding:10px 12px; background:var(--soft); border:2px solid var(--ring); border-radius:14px; display:none}
+    input:focus,select:focus,button:focus{outline:3px solid #ffd8a8; outline-offset:2px}
+    .btn{background:var(--accent); color:#fff; border:none; cursor:pointer}
+    .btn[disabled]{opacity:.5; cursor:not-allowed}
+    .muted{color:var(--muted)}
+    .toast{position:fixed; inset:auto 16px 16px auto; background:#333; color:#fff; padding:10px 12px; border-radius:12px}
+    nav a{margin-right:12px}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="head">
-      <div class="title">
-        <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-          <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-          <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-          <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-          <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6"/>
-          <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-        </svg>
-        <h1>🧾 受付</h1>
+  <div class="container">
+    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <strong>受付</strong> / <a href="/kitchen.html">調理場</a> / <a href="/confirm.html">予約確認</a></nav>
+    <h1>受付</h1>
+
+    <div class="card" aria-labelledby="res-title">
+      <h2 id="res-title">予約登録</h2>
+      <p class="muted">お名前・人数・来場時刻を入力して「予約する」を押してください。</p>
+      <div class="row" style="margin:8px 0 12px">
+        <input id="name" placeholder="お名前">
+        <input id="party" type="number" min="1" max="20" value="2" style="width:9ch" aria-label="人数">
+        <input id="time" type="datetime-local" aria-label="来場時刻">
+        <select id="status" aria-label="初期状態">
+          <option value="pending" selected>未確定</option>
+          <option value="confirmed">確定</option>
+        </select>
+        <button class="btn" id="reserveBtn">予約する</button>
       </div>
-      <div><a href="/">← 管理ポータル</a></div>
+      <div id="lastId" class="muted" aria-live="polite"></div>
     </div>
 
     <div class="card">
-      <p class="muted">お好み焼きの個数を入力して「注文する」を押してください。</p>
-      <div class="row" style="margin-bottom:12px">
-        <div class="qty" aria-live="polite" aria-label="数量">
-          <button class="btn big" id="minus" type="button" aria-label="減らす">－</button>
-          <span id="count" style="min-width:2ch; text-align:center">1</span>
-          <button class="btn big" id="plus" type="button" aria-label="増やす">＋</button>
-        </div>
-        <button class="btn big" id="submit" type="button">注文する</button>
-      </div>
-      <div class="toast" id="toast">注文を登録しました！</div>
+      <h2>直近の登録ログ</h2>
+      <ul id="log" style="margin:0; padding-left:1.2em"></ul>
     </div>
   </div>
 
+  <div id="toast" class="toast" style="display:none"></div>
+
   <script>
-    // Firebase の初期化が完了するまで待ってから実行
     document.addEventListener('DOMContentLoaded', () => {
-      waitForFirebase().then(runApp).catch((e) => {
-        console.error('Firebase 初期化待機中に失敗:', e);
-        alert('初期化に失敗しました。ページを再読み込みしてください。');
+      const db = firebase.database();
+      const $ = (id) => document.getElementById(id);
+
+      const showToast = (msg) => {
+        const t = $('toast'); t.textContent = msg; t.style.display='block';
+        setTimeout(()=> t.style.display='none', 1800);
+      };
+      const log = (msg) => {
+        const li = document.createElement('li'); li.textContent = msg;
+        $('log').prepend(li);
+      };
+
+      $('reserveBtn').addEventListener('click', async () => {
+        const name = $('name').value.trim();
+        const partySize = parseInt(($('party').value||'').trim(), 10);
+        const timeSlotRaw = $('time').value; // "YYYY-MM-DDTHH:mm"
+        const status = $('status').value;
+        if(!name || !partySize || !timeSlotRaw){ alert('名前・人数・時刻は必須です'); return; }
+
+        const timeSlot = timeSlotRaw.replace('T',' ').slice(0,16);
+        const ref = db.ref('reservations').push();
+        await ref.set({
+          name, partySize, timeSlot, status,
+          createdAt: firebase.database.ServerValue.TIMESTAMP
+        });
+
+        $('lastId').textContent = `予約ID: ${ref.key}`;
+        showToast('予約を登録しました');
+        log(`登録: ${name} / ${partySize}名 / ${timeSlot} / ${status}`);
+
+        $('name').value=''; $('party').value=2; $('time').value='';
       });
     });
-
-    // firebase.app() が使えるまで待つ（init.js の完了待ち）
-    function waitForFirebase(timeoutMs = 5000) {
-      const start = Date.now();
-      return new Promise((resolve, reject) => {
-        (function tick() {
-          try {
-            if (window.firebase && firebase.app) {
-              // app が取得できるときに解決
-              const app = firebase.app();
-              if (app) return resolve(app);
-            }
-          } catch(_) { /* まだ初期化前 */ }
-          if (Date.now() - start > timeoutMs) return reject(new Error('timeout'));
-          setTimeout(tick, 50);
-        })();
-      });
-    }
-
-    async function runApp() {
-      // Firestore (compat)
-      const db = firebase.firestore();
-
-      // もし自分でエミュレータへ繋ぎたい場合は以下（init.js?useEmulator=true を使うなら通常不要）
-      // if (location.hostname === 'localhost') {
-      //   try { db.useEmulator('127.0.0.1', 8080); } catch(_) {}
-      // }
-
-      // UI
-      let qty = 1;
-      const countEl  = document.getElementById('count');
-      const toastEl  = document.getElementById('toast');
-      const submitBtn= document.getElementById('submit');
-      const minusBtn = document.getElementById('minus');
-      const plusBtn  = document.getElementById('plus');
-
-      const render = () => { countEl.textContent = qty };
-
-      const safe = (fn) => (e) => { e?.preventDefault?.(); fn(e); };
-
-      minusBtn.addEventListener('click', safe(() => { qty = Math.max(1, qty - 1); render(); }));
-      plusBtn .addEventListener('click', safe(() => { qty = Math.min(99, qty + 1); render(); }));
-
-      submitBtn.addEventListener('click', safe(async () => {
-        if (submitBtn.disabled) return;
-        if (!Number.isInteger(qty) || qty < 1 || qty > 99) {
-          alert('1〜99 の範囲で数量を入力してください'); return;
-        }
-        submitBtn.disabled = true;
-
-        try {
-          const ref = await db.collection('orders').add({
-            qty,
-            status: 'new',
-            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-          });
-
-          qty = 1; render();
-          toastEl.textContent = `注文を登録しました（ID: ${ref.id.slice(0,6)}…）`;
-          toastEl.style.display = 'block';
-          setTimeout(() => { toastEl.style.display = 'none'; }, 2000);
-        } catch (e) {
-          console.error(e);
-          alert('注文の登録に失敗しました: ' + (e?.message || e));
-        } finally {
-          submitBtn.disabled = false;
-        }
-      }));
-
-      render();
-    }
   </script>
 </body>
 </html>
