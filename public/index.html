@@ -3,78 +3,28 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>予約確認 | 学部祭</title>
-
-  <!-- Firebase (Realtime Database only) -->
-  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
-  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
-  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+  <title>学部祭 | トップ</title>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; }
+    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4; --accent:#ff914d; }
     *{box-sizing:border-box}
-    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
-    .container{width:min(800px,100%); margin:0 auto; display:grid; gap:16px}
-    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; display:grid; place-items:center; min-height:100vh; padding:24px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:24px; width:min(560px,100%); text-align:center}
     h1{margin:0 0 8px}
-    .muted{color:var(--muted)}
-    input,button{font:inherit; padding:10px 12px; border-radius:12px; border:2px solid var(--ring); background:#fff}
-    button{cursor:pointer}
-    nav a{margin-right:12px}
+    p{margin:0 0 16px; color:#8b5e34}
+    .btn{display:inline-block; padding:12px 18px; border-radius:12px; border:0; background:var(--accent); color:#fff; text-decoration:none; font-weight:700; margin:6px}
+    .btn.sub{background:#3f2817; color:#fff}
   </style>
 </head>
 <body>
-  <div class="container">
-    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <a href="/kitchen.html">調理場</a> / <strong>予約確認</strong></nav>
-    <h1>予約確認</h1>
-
-    <div class="card">
-      <p class="muted">予約ID（受付で出た文字列）か、<b>お名前＋時刻</b>で検索できます。</p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 12px">
-        <input id="qId" placeholder="予約ID（任意）">
-        <input id="qName" placeholder="お名前（部分一致OK）">
-        <input id="qTime" type="datetime-local" aria-label="来場時刻（任意）">
-        <button id="search">検索</button>
-      </div>
-      <div id="result" aria-live="polite"></div>
+  <main class="card">
+    <h1>学部祭 管理</h1>
+    <p>ページを選んでください</p>
+    <div>
+      <a class="btn" href="/reception.html">受付ページへ</a>
+      <a class="btn sub" href="/kitchen.html">調理場ページへ</a>
     </div>
-  </div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const db = firebase.database();
-      const $ = (id) => document.getElementById(id);
-
-      $('search').addEventListener('click', search);
-      async function search(){
-        const qId = $('qId').value.trim();
-        const qName = $('qName').value.trim();
-        const qTime = $('qTime').value ? $('qTime').value.replace('T',' ').slice(0,16) : '';
-
-        const blocks = [];
-        if(qId){
-          const snap = await db.ref('reservations/'+qId).get();
-          if (snap.exists()) blocks.push(render(qId, snap.val()));
-        }else{
-          const snap = await db.ref('reservations').limitToLast(1000).get();
-          snap.forEach(child => {
-            const x = child.val();
-            const okName = qName ? (x.name||'').includes(qName) : true;
-            const okTime = qTime ? x.timeSlot === qTime : true;
-            if (okName && okTime) blocks.push(render(child.key, x));
-          });
-        }
-        $('result').innerHTML = blocks.length ? blocks.join('') : '該当なし';
-      }
-
-      function render(id, x){
-        return `<div style="border:1px solid #eadfcf; border-radius:12px; padding:12px; margin:8px 0">
-          <div><strong>${x.timeSlot||''}</strong>　${(x.name||'')}（${x.partySize||0}名）</div>
-          <div>状態: <b>${x.status||''}</b>　<span class="muted">ID: ${id}</span></div>
-        </div>`;
-      }
-    });
-  </script>
+  </main>
 </body>
 </html>

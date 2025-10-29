@@ -3,152 +3,159 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>調理場 | 学部祭</title>
+  <title>調理場 | お好み焼き注文一覧</title>
 
   <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番は外す -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; --accent:#ff914d; }
+    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4; --muted:#8b5e34; }
     *{box-sizing:border-box}
     body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
-    .container{width:min(1100px,100%); margin:0 auto; display:grid; gap:16px}
+    .wrap{width:min(960px,100%); margin:0 auto; display:grid; gap:16px}
     .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
+    nav a{margin-right:12px; color:var(--muted)}
     h1{margin:0 0 8px}
-    .muted{color:var(--muted)}
     table{width:100%; border-collapse:collapse}
     th,td{padding:8px; border-bottom:1px solid #eadfcf}
-    .badge{display:inline-block; background:#eee; padding:2px 8px; border-radius:999px}
-    button{font:inherit; padding:6px 10px; border-radius:10px; border:2px solid var(--ring); background:#fff; cursor:pointer}
-    button.primary{background:var(--accent); color:#fff; border:none}
-    .row{display:flex; gap:8px; flex-wrap:wrap}
-    nav a{margin-right:12px}
+    .muted{color:var(--muted)}
+    .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+    input{font:inherit; padding:8px 10px; border-radius:10px; border:2px solid var(--ring); background:#fff}
   </style>
 </head>
 <body>
-  <div class="container">
-    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <strong>調理場</strong> / <a href="/confirm.html">予約確認</a></nav>
+  <div class="wrap">
+    <nav><a href="/index.html">🏠 トップ</a> / <a href="/reception.html">受付</a> / <strong>調理場</strong></nav>
     <h1>調理場</h1>
 
-    <div class="card">
-      <div class="row" style="align-items:center">
-        <strong>フィルタ:</strong>
-        <select id="filter">
-          <option value="">すべて</option>
-          <option value="pending">未確定</option>
-          <option value="confirmed">確定</option>
-          <option value="seated">着席</option>
-          <option value="canceled">取消</option>
-        </select>
-        <input id="q" placeholder="名前で検索">
-        <button id="reload">再読み込み</button>
-        <span id="count" class="muted" aria-live="polite"></span>
+    <section class="card">
+      <div class="row">
+        <strong>合計個数:</strong>
+        <span id="total" style="font-size:20px; font-weight:800">0</span>
+        <span class="muted" id="countInfo" aria-live="polite"></span>
+        <span style="flex:1"></span>
+        <input id="q" placeholder="時刻(HH:MM)でフィルタ例: 12:3">
       </div>
-    </div>
+    </section>
 
-    <div class="card" role="region" aria-label="予約一覧">
+    <section class="card" role="region" aria-label="注文一覧">
       <table>
         <thead>
-          <tr>
-            <th>時刻</th><th>名前</th><th style="text-align:right">人数</th><th>状態</th><th>操作</th>
-          </tr>
+          <tr><th>時刻</th><th style="text-align:right">個数</th></tr>
         </thead>
         <tbody id="tbody"></tbody>
       </table>
-    </div>
+    </section>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const db = firebase.database();
       const tbody = document.getElementById('tbody');
-      const rowMap = new Map();
-      const $ = id => document.getElementById(id);
+      const rowMap = new Map(); // id -> tr
+      const $ = (id) => document.getElementById(id);
 
-      // リッスン開始
-      const ref = db.ref('reservations').limitToLast(500);
-      ref.on('child_added', snap => upsertRow(snap.key, snap.val(), true));
-      ref.on('child_changed', snap => upsertRow(snap.key, snap.val(), false));
-      ref.on('child_removed', snap => { const tr = rowMap.get(snap.key); if (tr) tr.remove(); rowMap.delete(snap.key); updateCount(); });
+      let total = 0;
 
-      // 手元フィルタ
-      const applyFilter = () => {
-        const f = $('filter').value;
+      // 最新から最大500件を監視（必要なら増減OK）
+      const ref = db.ref('okonomiOrders').limitToLast(500);
+
+      // 追加時
+      ref.on('child_added', snap => {
+        const id = snap.key, x = snap.val();
+        upsertRow(id, x, true);
+        total += (x.count || 0);
+        updateTotal();
+      });
+
+      // 変更時（数の修正などがあった場合）
+      ref.on('child_changed', snap => {
+        const id = snap.key, x = snap.val();
+        const before = Number(rowMap.get(id)?.dataset.count || 0);
+        upsertRow(id, x, false);
+        total += (x.count||0) - before;
+        updateTotal();
+      });
+
+      // 削除時
+      ref.on('child_removed', snap => {
+        const id = snap.key;
+        const tr = rowMap.get(id);
+        if (tr) {
+          total -= Number(tr.dataset.count||0);
+          tr.remove();
+          rowMap.delete(id);
+          updateTotal();
+          updateShownCount();
+        }
+      });
+
+      // 表示の簡易フィルタ（時刻文字列に含まれるか）
+      $('q').addEventListener('input', applyFilter);
+
+      function applyFilter(){
         const q = $('q').value.trim();
         let shown = 0;
         rowMap.forEach(tr => {
-          const name = tr.dataset.name || '';
-          const status = tr.dataset.status || '';
-          const okStatus = !f || status === f;
-          const okName = !q || name.includes(q);
-          tr.style.display = (okStatus && okName) ? '' : 'none';
-          if (tr.style.display !== 'none') shown++;
+          const t = tr.dataset.time || '';
+          const ok = !q || t.includes(q);
+          tr.style.display = ok ? '' : 'none';
+          if (ok) shown++;
         });
-        $('count').textContent = `表示件数: ${shown}`;
-      };
-      $('filter').addEventListener('change', applyFilter);
-      $('q').addEventListener('input', applyFilter);
-      $('reload').addEventListener('click', () => location.reload());
+        updateShownCount(shown);
+      }
 
       function upsertRow(id, x, prepend){
         let tr = rowMap.get(id);
-        if(!tr){
+        if (!tr) {
           tr = document.createElement('tr');
           tr.id = 'row-'+id;
-          tr.innerHTML = `
-            <td class="time"></td>
-            <td class="name"></td>
-            <td class="party" style="text-align:right"></td>
-            <td class="status"></td>
-            <td class="ops"></td>
-          `;
+          tr.innerHTML = `<td class="time"></td><td class="count" style="text-align:right"></td>`;
           if (prepend) tbody.prepend(tr); else tbody.appendChild(tr);
           rowMap.set(id, tr);
         }
-        tr.dataset.name = x.name || '';
-        tr.dataset.status = x.status || '';
-        fill(tr, id, x);
+        const time = formatTime(x.createdAt);
+        tr.dataset.time = time;
+        tr.dataset.count = Number(x.count||0);
+        tr.querySelector('.time').textContent = time;
+        tr.querySelector('.count').textContent = x.count || 0;
+
+        // 右クリックで削除（必要なときだけ使ってください）
+        tr.oncontextmenu = async (e) => {
+          e.preventDefault();
+          if (confirm(`${time} の注文 (${x.count||0}個) を削除しますか？`)) {
+            await firebase.database().ref('okonomiOrders/'+id).remove();
+          }
+        };
+
         applyFilter();
       }
 
-      function fill(tr, id, x){
-        tr.querySelector('.time').textContent = x.timeSlot || '';
-        tr.querySelector('.name').textContent = x.name || '';
-        tr.querySelector('.party').textContent = x.partySize ?? '';
-        tr.querySelector('.status').innerHTML = `<span class="badge">${x.status || ''}</span>`;
-
-        const ops = tr.querySelector('.ops');
-        ops.innerHTML = '';
-        for (const [label, next, cls] of [
-          ['確定','confirmed','primary'],
-          ['着席','seated',''],
-          ['未確定','pending',''],
-          ['取消','canceled',''],
-        ]) {
-          const b = document.createElement('button');
-          b.textContent = label; if (cls) b.classList.add(cls); b.style.marginRight='6px';
-          b.addEventListener('click', async () => {
-            await firebase.database().ref(`reservations/${id}/status`).set(next);
-          });
-          ops.appendChild(b);
-        }
-
-        // 右クリックで削除（誤操作防止でconfirm）
-        tr.oncontextmenu = async (e) => {
-          e.preventDefault();
-          if (confirm(`この予約を削除しますか？\n${x.timeSlot} / ${x.name}（${x.partySize}名）`)) {
-            await firebase.database().ref('reservations/'+id).remove();
-          }
-        };
+      function formatTime(ts){
+        if (!ts) return '';
+        const d = new Date(ts);
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        const ss = String(d.getSeconds()).padStart(2,'0');
+        return `${hh}:${mm}:${ss}`;
+        // 日付も要るなら `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()} ${hh}:${mm}:${ss}`
       }
 
-      function updateCount(){
-        let n = 0;
-        rowMap.forEach(tr => { if (tr.style.display !== 'none') n++; });
-        $('count').textContent = `表示件数: ${n}`;
+      function updateTotal(){
+        $('total').textContent = total;
+      }
+
+      function updateShownCount(n){
+        // 表示件数（filterのたびに更新）
+        if (typeof n === 'undefined') {
+          let c = 0; rowMap.forEach(tr => { if (tr.style.display !== 'none') c++; });
+          n = c;
+        }
+        $('countInfo').textContent = `（表示中: ${n}件）`;
       }
     });
   </script>

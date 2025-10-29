@@ -3,107 +3,80 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>受付 | 学部祭</title>
+  <title>受付 | お好み焼き注文</title>
 
   <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番は外す -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
   <style>
-    :root{
-      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --muted:#8b5e34; --ring:#e2c9a4; --accent:#ff914d;
-    }
+    :root{ --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4; --accent:#ff914d; --muted:#8b5e34; }
     *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0; background:var(--bg); color:var(--ink);
-      font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
-      line-height:1.6; padding:20px;
-      display:grid; place-items:start center;
-    }
-    .container{width:min(960px,100%); display:grid; gap:16px}
-    .card{
-      background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px;
-      box-shadow: 0 2px 0 rgba(0,0,0,.04);
-    }
-    h1{margin:0 0 8px; font-weight:800}
-    h2{margin:8px 0; font-size:18px}
-    .row{display:flex; gap:8px; flex-wrap:wrap}
-    input,button,select{
-      font:inherit; padding:10px 12px; border-radius:12px; border:2px solid var(--ring); background:#fff;
-    }
-    input:focus,select:focus,button:focus{outline:3px solid #ffd8a8; outline-offset:2px}
-    .btn{background:var(--accent); color:#fff; border:none; cursor:pointer}
-    .btn[disabled]{opacity:.5; cursor:not-allowed}
+    body{margin:0; background:var(--bg); color:var(--ink); font-family:"M PLUS Rounded 1c",system-ui,sans-serif; line-height:1.6; padding:20px}
+    .wrap{width:min(720px,100%); margin:0 auto; display:grid; gap:16px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:16px; padding:16px}
+    nav a{margin-right:12px; color:var(--muted)}
+    h1{margin:0 0 8px}
+    .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+    input,button{font:inherit; padding:10px 12px; border-radius:12px; border:2px solid var(--ring); background:#fff}
+    input[type="number"]{width:10ch}
+    button{cursor:pointer}
+    .btn{background:var(--accent); color:#fff; border:none}
     .muted{color:var(--muted)}
-    .toast{position:fixed; inset:auto 16px 16px auto; background:#333; color:#fff; padding:10px 12px; border-radius:12px}
-    nav a{margin-right:12px}
+    #toast{position:fixed; right:16px; bottom:16px; background:#333; color:#fff; padding:10px 12px; border-radius:12px; display:none}
+    ul{margin:0; padding-left:1.2em}
   </style>
 </head>
 <body>
-  <div class="container">
-    <nav class="muted"><a href="/index.html">🏠 トップ</a> / <strong>受付</strong> / <a href="/kitchen.html">調理場</a> / <a href="/confirm.html">予約確認</a></nav>
+  <div class="wrap">
+    <nav><a href="/index.html">🏠 トップ</a> / <strong>受付</strong> / <a href="/kitchen.html">調理場</a></nav>
     <h1>受付</h1>
 
-    <div class="card" aria-labelledby="res-title">
-      <h2 id="res-title">予約登録</h2>
-      <p class="muted">お名前・人数・来場時刻を入力して「予約する」を押してください。</p>
-      <div class="row" style="margin:8px 0 12px">
-        <input id="name" placeholder="お名前">
-        <input id="party" type="number" min="1" max="20" value="2" style="width:9ch" aria-label="人数">
-        <input id="time" type="datetime-local" aria-label="来場時刻">
-        <select id="status" aria-label="初期状態">
-          <option value="pending" selected>未確定</option>
-          <option value="confirmed">確定</option>
-        </select>
-        <button class="btn" id="reserveBtn">予約する</button>
+    <section class="card" aria-labelledby="okonomi-title">
+      <h2 id="okonomi-title">お好み焼きの注文</h2>
+      <p class="muted">注文された <b>お好み焼きの個数</b> を入力して保存します。</p>
+      <div class="row" style="margin-top:8px">
+        <label for="count">個数</label>
+        <input id="count" type="number" min="1" step="1" value="1" />
+        <button id="orderBtn" class="btn">注文を保存</button>
       </div>
-      <div id="lastId" class="muted" aria-live="polite"></div>
-    </div>
+      <p id="last" class="muted" aria-live="polite" style="margin-top:10px"></p>
+    </section>
 
-    <div class="card">
-      <h2>直近の登録ログ</h2>
-      <ul id="log" style="margin:0; padding-left:1.2em"></ul>
-    </div>
+    <section class="card">
+      <h2>直近の送信ログ</h2>
+      <ul id="log"></ul>
+    </section>
   </div>
 
-  <div id="toast" class="toast" style="display:none"></div>
+  <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const db = firebase.database();
       const $ = (id) => document.getElementById(id);
 
-      const showToast = (msg) => {
-        const t = $('toast'); t.textContent = msg; t.style.display='block';
-        setTimeout(()=> t.style.display='none', 1800);
-      };
-      const log = (msg) => {
-        const li = document.createElement('li'); li.textContent = msg;
-        $('log').prepend(li);
-      };
+      const showToast = (msg) => { const t=$('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); };
+      const log = (msg) => { const li=document.createElement('li'); li.textContent=msg; $('log').prepend(li); };
 
-      $('reserveBtn').addEventListener('click', async () => {
-        const name = $('name').value.trim();
-        const partySize = parseInt(($('party').value||'').trim(), 10);
-        const timeSlotRaw = $('time').value; // "YYYY-MM-DDTHH:mm"
-        const status = $('status').value;
-        if(!name || !partySize || !timeSlotRaw){ alert('名前・人数・時刻は必須です'); return; }
+      $('orderBtn').addEventListener('click', async () => {
+        const n = parseInt(($('count').value||'').trim(), 10);
+        if (!n || n < 1) { alert('1以上の個数を入力してください'); return; }
 
-        const timeSlot = timeSlotRaw.replace('T',' ').slice(0,16);
-        const ref = db.ref('reservations').push();
+        // /okonomiOrders/{pushId} に {count, createdAt} を保存
+        const ref = db.ref('okonomiOrders').push();
         await ref.set({
-          name, partySize, timeSlot, status,
+          count: n,
           createdAt: firebase.database.ServerValue.TIMESTAMP
         });
 
-        $('lastId').textContent = `予約ID: ${ref.key}`;
-        showToast('予約を登録しました');
-        log(`登録: ${name} / ${partySize}名 / ${timeSlot} / ${status}`);
-
-        $('name').value=''; $('party').value=2; $('time').value='';
+        $('last').textContent = `保存しました（ID: ${ref.key} / ${n}個）`;
+        showToast('注文を保存しました');
+        log(`注文: お好み焼き ${n}個`);
+        $('count').value = 1;
       });
     });
   </script>
