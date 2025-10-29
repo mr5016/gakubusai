@@ -66,39 +66,36 @@
   </div>
 
   <script>
-    const totalEl = document.getElementById('total');
-    const listEl = document.getElementById('list');
+  const db = firebase.firestore();
+  const totalEl = document.getElementById('total');
+  const listEl  = document.getElementById('list');
 
-    // 全注文を監視して合計を算出（status !== "canceled"）
-    firebase.firestore().collection('orders')
-      .where('status','!=','canceled') // 注意: これだけだと不等号クエリの仕様上 index が必要になる場合あり
-      .orderBy('status')               // Firestore の制約に合わせて orderBy を追加
-      .onSnapshot(snap => {
-        let total = 0;
-        snap.forEach(doc => { const d = doc.data(); total += Number(d.qty||0); });
-        totalEl.textContent = total;
-      }, err => {
-        // where('status','!=','canceled')がつらい環境では全件→クライアントで除外に切替
-        console.warn('Query with status != canceled may need an index. Falling back.', err);
-        firebase.firestore().collection('orders')
-          .orderBy('createdAt','desc')
-          .onSnapshot(s2=>{
-            let total=0;
-            s2.forEach(doc=>{ const d=doc.data(); if(d.status!=='canceled') total+=Number(d.qty||0); });
-            totalEl.textContent = total;
-          });
+  // 【重要】 where('!=', 'canceled') はインデックスや制約でハマりやすいので使わず、
+  // 全件購読→クライアント側で除外にします。
+  db.collection('orders')
+    .orderBy('createdAt', 'desc')
+    .limit(100) // 必要に応じて拡張
+    .onSnapshot((snap) => {
+      let total = 0;
+      const items = [];
+
+      snap.forEach(doc => {
+        const x = doc.data();
+        if (x.status !== 'canceled') {
+          total += Number(x.qty || 0);
+        }
+        const t = x.createdAt?.toDate?.() || new Date();
+        items.push(
+          `<div class="item"><span>🍽️ ${x.qty} 個</span><span class="muted">${t.toLocaleString()}</span></div>`
+        );
       });
 
-    // 最新20件をリスト表示
-    firebase.firestore().collection('orders')
-      .orderBy('createdAt','desc').limit(20)
-      .onSnapshot(snap=>{
-        listEl.innerHTML = snap.docs.map(d=>{
-          const x=d.data();
-          const t=x.createdAt?.toDate?.() || new Date();
-          return `<div class="item"><span>🍽️ ${x.qty} 個</span><span class="muted">${t.toLocaleString()}</span></div>`;
-        }).join('');
-      });
-  </script>
+      totalEl.textContent = total;
+      listEl.innerHTML = items.join('');
+    }, (err) => {
+      alert('注文の購読に失敗しました: ' + (err?.message || err));
+      console.error(err);
+    });
+</script>
 </body>
 </html>
