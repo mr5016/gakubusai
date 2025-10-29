@@ -8,15 +8,15 @@
   <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
-  <!-- エミュレータ使用時は true、本番では外す -->
+  <!-- エミュレータ使用時は ?useEmulator=true、本番では外す -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-  <!-- まるっと太字系フォント -->
-  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;800;900&display=swap" rel="stylesheet">
+  <!-- 丸くて太めのフォント -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
   <style>
     :root{
       --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4;
-      --accent:#ff914d; --accent-2:#ffd1b3; --muted:#8b5e34; --ok:#18a957;
+      --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
     }
     *{box-sizing:border-box}
     body{
@@ -24,209 +24,284 @@
       font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
       line-height:1.6; padding:20px;
     }
-    .wrap{width:min(760px,100%); margin:0 auto; display:grid; gap:18px}
-    .card{background:var(--paper); border:2px solid var(--ring); border-radius:20px; padding:18px}
-    nav a{margin-right:12px; color:var(--muted); text-decoration:none; font-weight:800}
-    h1{margin:0 0 4px; font-weight:900; letter-spacing:.5px}
+    .wrap{width:min(880px,100%); margin:0 auto; display:grid; gap:18px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
+    h1{margin:0 0 6px; font-weight:900}
     h2{margin:0 0 10px; font-weight:900}
     .muted{color:var(--muted)}
-    ul{margin:0; padding-left:1.15em}
+    .stamp{font-variant-numeric:tabular-nums}
     #toast{
       position:fixed; right:16px; bottom:16px; background:#333; color:#fff;
       padding:12px 14px; border-radius:14px; display:none; font-weight:800
     }
 
-    /* --- でか四角ボタンUI --- */
-    .panel{display:grid; gap:16px}
+    /* でか四角ボタン＋表示 */
     .display{
       display:flex; align-items:center; justify-content:center;
-      height:180px; border-radius:24px; border:3px solid var(--accent-2);
-      background:#fffaf5; font-weight:900; font-size:84px; letter-spacing:1px;
-      box-shadow:0 14px 28px rgba(255,145,77,.25);
-      user-select:none;
+      height:200px; border-radius:28px; border:3px solid #ffd7bf;
+      background:#fffaf5; font-weight:900; font-size:92px; letter-spacing:1px;
+      box-shadow:0 14px 28px rgba(255,145,77,.25); user-select:none;
+      margin-bottom:14px;
     }
-    .grid{
-      display:grid;
-      grid-template-columns:repeat(3,1fr);
-      gap:16px;
-    }
+    .grid-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
     .sq{
       display:flex; align-items:center; justify-content:center;
-      aspect-ratio:1/1; min-height:110px;
-      border-radius:26px; border:3px solid var(--ring); background:#fff;
-      font-weight:900; font-size:34px; cursor:pointer; user-select:none;
-      box-shadow:0 8px 20px rgba(0,0,0,.06);
-      transition:transform .04s ease-in;
+      aspect-ratio:1/1; min-height:120px; border-radius:28px;
+      border:3px solid var(--ring); background:#fff;
+      font-weight:900; font-size:40px; cursor:pointer; user-select:none;
+      box-shadow:0 8px 20px rgba(0,0,0,.06); transition:transform .04s ease-in;
     }
     .sq:active{ transform:translateY(1px) }
-    .sq.primary{ background:var(--accent); color:#fff; border-color:transparent; box-shadow:0 10px 22px rgba(255,145,77,.35) }
-    .sq.good{ background:var(--ok); color:#fff; border-color:transparent; box-shadow:0 10px 22px rgba(24,169,87,.35) }
-    .sq.ghost{ background:#fff; color:var(--muted) }
-    .label-row{
-      display:flex; align-items:center; justify-content:space-between; gap:8px;
-      margin-top:-2px; margin-bottom:2px;
-    }
+    .sq.primary{ background:var(--accent); color:#fff; border-color:transparent;
+      box-shadow:0 10px 22px rgba(255,145,77,.35) }
+    .sq.good{ background:var(--ok); color:#fff; border-color:transparent;
+      box-shadow:0 10px 22px rgba(24,169,87,.35) }
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
     .badge{
       display:inline-flex; align-items:center; gap:6px;
       padding:8px 12px; border-radius:999px; border:2px solid var(--ring);
       background:#fff; font-weight:900;
     }
-    .stamp{font-variant-numeric:tabular-nums}
-    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0}
-    .tiny{font-size:12px}
-    /* アクセシビリティ用フォーカス */
-    .sq:focus-visible{ outline:4px solid #000; outline-offset:3px }
+
+    /* 注文一覧 */
+    .order-list{display:grid; gap:10px; margin-top:8px}
+    .order-item{
+      display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
+      border:2px solid var(--ring); border-radius:16px; padding:10px 12px; background:#fff;
+    }
+    .order-main{ display:flex; gap:12px; align-items:baseline; flex-wrap:wrap }
+    .time{ font-weight:900; }
+    .item{ font-weight:900; }
+    .count{ font-weight:900; }
+    .btns{ display:flex; gap:8px; }
+    .btn{
+      border:none; border-radius:12px; padding:10px 14px; font-weight:900; cursor:pointer;
+      box-shadow:0 6px 14px rgba(0,0,0,.07);
+    }
+    .btn.cancel{ background:var(--danger); color:#fff; }
+    .btn.done{ background:var(--ok); color:#fff; }
+    .empty{
+      border:2px dashed var(--ring); background:#fff; color:var(--muted);
+      padding:18px; border-radius:16px; text-align:center; font-weight:800;
+    }
+    .note{font-size:12px; color:var(--muted)}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <nav><a href="/index.html">🏠 トップ</a> / <strong>受付</strong> / <a href="/kitchen.html">調理場</a></nav>
     <h1>受付</h1>
 
+    <!-- 入力カード -->
     <section class="card" aria-labelledby="order-title">
       <h2 id="order-title">お好み焼き 注文</h2>
-      <p class="muted">大きい四角いボタンで個数を調整して「保存」で登録します。</p>
+      <p class="muted">±ボタンで個数を調整し、「保存」で登録します。</p>
 
-      <div class="label-row" aria-live="polite">
+      <div class="row" style="justify-content:space-between">
         <span class="badge">品目：<b>お好み焼き</b></span>
         <span class="badge">選択中：<b id="previewQty">1</b> 個</span>
       </div>
 
-      <!-- でっかい枚数表示 -->
       <div id="display" class="display" aria-label="現在の個数">1</div>
 
-      <!-- でっかい四角ボタン群 -->
-      <div class="panel" role="group" aria-label="数量操作ボタン">
-        <div class="grid">
-          <button class="sq" id="minus5" aria-label="5個減らす">−5</button>
-          <button class="sq" id="minus1" aria-label="1個減らす">−1</button>
-          <button class="sq" id="clear"  aria-label="0にリセット">0</button>
-
-          <button class="sq" id="plus1"  aria-label="1個増やす">＋1</button>
-          <button class="sq" id="plus5"  aria-label="5個増やす">＋5</button>
-          <button class="sq ghost" id="set10" aria-label="10個にする">10</button>
-        </div>
-
-        <div class="grid">
-          <button class="sq ghost" id="set1"  aria-label="1個にする">1</button>
-          <button class="sq ghost" id="set2"  aria-label="2個にする">2</button>
-          <button class="sq ghost" id="set3"  aria-label="3個にする">3</button>
-        </div>
-
-        <div class="grid">
-          <button class="sq primary" id="save" aria-label="注文を保存">保存</button>
-          <button class="sq" id="undo" aria-label="ひとつ前に戻す">もどす</button>
-          <button class="sq good" id="new" aria-label="連続で登録するために1個に戻す">新規</button>
-        </div>
+      <div class="grid-3" role="group" aria-label="数量操作ボタン">
+        <button class="sq" id="minus1" aria-label="1個減らす">−</button>
+        <button class="sq primary" id="save" aria-label="注文を保存">保存</button>
+        <button class="sq" id="plus1" aria-label="1個増やす">＋</button>
       </div>
 
       <p id="last" class="muted stamp" aria-live="polite" style="margin-top:8px"></p>
     </section>
 
-    <section class="card">
-      <h2>直近の送信ログ</h2>
-      <ul id="log"></ul>
-      <p class="tiny muted">※ 保存は Realtime Database の <code>okonomiOrders</code> に書き込みます。</p>
+    <!-- 注文一覧カード（アクティブ＝未完了のみを表示） -->
+    <section class="card" aria-labelledby="list-title">
+      <h2 id="list-title">受付中の注文（未完了）</h2>
+      <div id="orderList" class="order-list"></div>
+      <div id="empty" class="empty" style="display:none">まだ注文はありません</div>
+      <p class="note">
+        ※一覧は Realtime Database <code>okonomiOrders</code> から取得。<br>
+        「取り消し」はデータを削除します。「完了」は <code>status: "done"</code> を付けて一覧から除外します（データは残ります）。
+      </p>
     </section>
   </div>
 
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', async () => {
+    document.addEventListener('DOMContentLoaded', () => {
       const $ = (id) => document.getElementById(id);
       const display = $('display');
       const previewQty = $('previewQty');
       const last = $('last');
       const toast = $('toast');
-      const logUl = $('log');
+      const listEl = $('orderList');
+      const emptyEl = $('empty');
 
-      // 状態
+      // ---- 個数状態（±のみ） ----
       let qty = 1;
-      let history = [1]; // もどす用
-
       const clamp = (n) => Math.max(0, Math.min(999, n));
-      const paint = () => {
-        display.textContent = qty;
-        previewQty.textContent = qty;
-      };
-      const pushHistory = () => {
-        if (history[history.length - 1] !== qty) history.push(qty);
-      };
+      const paintQty = () => { display.textContent = qty; previewQty.textContent = qty; };
+
+      $('minus1').addEventListener('click', () => { qty = clamp(qty - 1); paintQty(); });
+      $('plus1').addEventListener('click', () => { qty = clamp(qty + 1); paintQty(); });
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp' || e.key === '+') { qty = clamp(qty + 1); paintQty(); }
+        if (e.key === 'ArrowDown' || e.key === '-') { qty = clamp(qty - 1); paintQty(); }
+        if (e.key === 'Enter') { $('save').click(); }
+      });
+
       const showToast = (msg) => {
         toast.textContent = msg; toast.style.display = 'block';
         setTimeout(()=> toast.style.display = 'none', 1200);
       };
-      const addLog = (text) => {
-        const li = document.createElement('li');
-        li.textContent = text;
-        logUl.prepend(li);
-      };
 
-      // ボタン動作
-      const wiring = [
-        ['minus5', () => qty = clamp(qty - 5)],
-        ['minus1', () => qty = clamp(qty - 1)],
-        ['clear',  () => qty = 0],
-        ['plus1',  () => qty = clamp(qty + 1)],
-        ['plus5',  () => qty = clamp(qty + 5)],
-        ['set10',  () => qty = 10],
-        ['set1',   () => qty = 1],
-        ['set2',   () => qty = 2],
-        ['set3',   () => qty = 3],
-        ['undo',   () => { if (history.length > 1){ history.pop(); qty = history[history.length-1]; } }],
-        ['new',    () => { qty = 1; showToast('1個に戻しました'); }],
-      ];
-      wiring.forEach(([id, fn]) => {
-        $(id).addEventListener('click', () => { fn(); pushHistory(); paint(); });
-      });
-
-      // キーボードでも操作
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === '+'){ qty = clamp(qty + 1); }
-        if (e.key === 'ArrowDown' || e.key === '-'){ qty = clamp(qty - 1); }
-        if (e.key === '0'){ qty = 0; }
-        if (e.key === 'Enter'){ $('save').click(); return; }
-        pushHistory(); paint();
-      });
-
-      // Firebase 初期化チェック & 保存
+      // ---- Firebase 初期化チェック ----
+      let db;
       try{
         if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
         if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
         if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
+        db = firebase.database();
+      }catch(err){
+        console.error('[Firebase初期化エラー]', err);
+        alert('Firebaseの初期化に失敗しました。\\n' + (err.message || err));
+        return;
+      }
 
-        const app = firebase.app();
-        const db = firebase.database();
+      // ---- 保存処理 ----
+      $('save').addEventListener('click', async () => {
+        if (!qty || qty < 1) { alert('1以上で保存してください'); return; }
+        try{
+          const ref = db.ref('okonomiOrders').push();
+          await ref.set({
+            item: 'お好み焼き',
+            count: qty,
+            status: 'active', // 未完了
+            createdAt: firebase.database.ServerValue.TIMESTAMP
+          });
+          last.textContent = `保存しました（ID: ${ref.key} / お好み焼き × ${qty}）`;
+          showToast('保存しました');
+          qty = 1; paintQty();
+        }catch(err){
+          console.error('❌ 保存エラー', err);
+          alert('保存に失敗しました: ' + (err.message || err));
+        }
+      });
 
-        $('save').addEventListener('click', async () => {
-          if (!qty || qty < 1) { alert('1以上で保存してください'); return; }
+      // ---- 一覧（未完了のみ） ----
+      const nodeMap = new Map(); // id -> li element
+
+      const formatTime = (ms) => {
+        const d = new Date(ms);
+        const y = d.getFullYear();
+        const m = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        const hh = String(d.getHours()).padStart(2,'0');
+        const mm = String(d.getMinutes()).padStart(2,'0');
+        const ss = String(d.getSeconds()).padStart(2,'0');
+        return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
+      };
+
+      const renderEmpty = () => {
+        const hasItem = listEl.children.length > 0;
+        emptyEl.style.display = hasItem ? 'none' : 'block';
+      };
+
+      const makeOrderEl = (id, data) => {
+        const li = document.createElement('div');
+        li.className = 'order-item';
+        li.id = `order-${id}`;
+
+        const left = document.createElement('div');
+        left.className = 'order-main';
+        const time = document.createElement('span');
+        time.className = 'time stamp';
+        time.textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+
+        const item = document.createElement('span');
+        item.className = 'item';
+        item.textContent = data.item || '—';
+
+        const count = document.createElement('span');
+        count.className = 'count';
+        count.textContent = `× ${data.count ?? '—'}`;
+
+        left.append(time, item, count);
+
+        const right = document.createElement('div');
+        right.className = 'btns';
+
+        const btnCancel = document.createElement('button');
+        btnCancel.className = 'btn cancel';
+        btnCancel.textContent = '取り消し';
+        btnCancel.addEventListener('click', async () => {
+          if (!confirm('この注文を削除します。よろしいですか？')) return;
           try{
-            const ref = db.ref('okonomiOrders').push();
-            await ref.set({
-              item: 'お好み焼き',
-              count: qty,
-              createdAt: firebase.database.ServerValue.TIMESTAMP
-            });
-            last.textContent = `保存しました（ID: ${ref.key} / お好み焼き × ${qty}）`;
-            showToast('保存しました');
-            addLog(`お好み焼き × ${qty}`);
-            // 次の人に備えて1個に戻す
-            qty = 1; pushHistory(); paint();
-            console.log('✅ 保存OK', {id: ref.key, qty});
+            await db.ref(`okonomiOrders/${id}`).remove();
+            showToast('削除しました');
           }catch(err){
-            console.error('❌ データ保存エラー', err);
-            alert('保存に失敗しました: ' + (err.message || err));
+            alert('削除に失敗しました: ' + (err.message || err));
           }
         });
 
-        // 初期描画
-        paint();
-      }catch(err){
-        console.error('[Firebase初期化エラー]', err);
-        last.textContent = '初期化エラー: ' + (err.message || err);
-        alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
-      }
+        const btnDone = document.createElement('button');
+        btnDone.className = 'btn done';
+        btnDone.textContent = '完了';
+        btnDone.addEventListener('click', async () => {
+          try{
+            await db.ref(`okonomiOrders/${id}`).update({
+              status: 'done',
+              completedAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            showToast('完了にしました');
+          }catch(err){
+            alert('更新に失敗しました: ' + (err.message || err));
+          }
+        });
+
+        right.append(btnCancel, btnDone);
+        li.append(left, right);
+        return li;
+      };
+
+      const addOrUpdate = (snap) => {
+        const id = snap.key;
+        const data = snap.val() || {};
+        // active（未完了）のみ表示
+        if (data.status === 'done') {
+          const exist = nodeMap.get(id);
+          if (exist) { exist.remove(); nodeMap.delete(id); renderEmpty(); }
+          return;
+        }
+        let el = nodeMap.get(id);
+        if (!el) {
+          el = makeOrderEl(id, data);
+          // createdAt昇順→下に、にしたいが、簡単に先頭に入れる（新しい順）
+          listEl.prepend(el);
+          nodeMap.set(id, el);
+        } else {
+          // 値の更新（時間・個数など）
+          el.querySelector('.time').textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+          el.querySelector('.item').textContent = data.item || '—';
+          el.querySelector('.count').textContent = `× ${data.count ?? '—'}`;
+        }
+        renderEmpty();
+      };
+
+      const removeNode = (snap) => {
+        const id = snap.key;
+        const el = nodeMap.get(id);
+        if (el) { el.remove(); nodeMap.delete(id); renderEmpty(); }
+      };
+
+      // 直近50件を監視（未完了のみを都度フィルタ）
+      const ordersRef = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(50);
+      ordersRef.on('child_added', addOrUpdate);
+      ordersRef.on('child_changed', addOrUpdate);
+      ordersRef.on('child_removed', removeNode);
+
+      // 初期表示
+      paintQty();
+      renderEmpty();
     });
   </script>
 </body>
