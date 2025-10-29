@@ -69,33 +69,53 @@
           <button class="btn big" id="plus" type="button" aria-label="増やす">＋</button>
         </div>
         <button class="btn big" id="submit" type="button">注文する</button>
+        <script>document.getElementById('submit')?.addEventListener('click',()=>alert('clicked'))</script>
       </div>
       <div class="toast" id="toast">注文を登録しました！</div>
     </div>
   </div>
 
   <script>
-    let qty = 1;
-    const countEl = document.getElementById('count');
-    const toastEl = document.getElementById('toast');
-    function render(){ countEl.textContent = qty }
-    document.getElementById('minus').onclick = () => { qty = Math.max(1, qty-1); render(); };
-    document.getElementById('plus').onclick  = () => { qty = Math.min(99, qty+1); render(); };
+  // Firestore参照
+  const db = firebase.firestore();
 
-    document.getElementById('submit').onclick = async () => {
-      try{
-        await firebase.firestore().collection('orders').add({
-          qty, status:'new',
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        qty = 1; render();
-        toastEl.style.display = 'block';
-        setTimeout(()=> toastEl.style.display='none', 1800);
-      }catch(e){
-        alert('注文の登録に失敗しました: ' + (e?.message || e));
-      }
-    };
-    render();
-  </script>
+  // UI
+  let qty = 1;
+  const countEl = document.getElementById('count');
+  const toastEl = document.getElementById('toast');
+  const submitBtn = document.getElementById('submit');
+  const minusBtn = document.getElementById('minus');
+  const plusBtn  = document.getElementById('plus');
+
+  function render(){ countEl.textContent = qty }
+
+  minusBtn.onclick = () => { qty = Math.max(1, qty-1); render(); };
+  plusBtn.onclick  = () => { qty = Math.min(99, qty+1); render(); };
+
+  submitBtn.onclick = async () => {
+    submitBtn.disabled = true;
+    try{
+      const ref = await db.collection('orders').add({
+        qty,
+        status: 'new',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+      // UIリセット＆完了表示
+      qty = 1; render();
+      toastEl.textContent = `注文を登録しました（ID: ${ref.id.slice(0,6)}…）`;
+      toastEl.style.display = 'block';
+      setTimeout(()=> toastEl.style.display='none', 2000);
+    }catch(e){
+      alert('注文の登録に失敗しました: ' + (e?.message || e));
+      console.error(e);
+    }finally{
+      submitBtn.disabled = false;
+    }
+  };
+
+  render();
+</script>
+
 </body>
 </html>
