@@ -8,7 +8,7 @@
   <!-- Firebase (Realtime Database only) -->
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
-  <!-- エミュレータ使用時は ?useEmulator=true、本番は外す -->
+  <!-- エミュレータ使用時は true、本番では外す -->
   <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
   <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;600;800&display=swap" rel="stylesheet">
@@ -55,29 +55,66 @@
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const db = firebase.database();
+    document.addEventListener('DOMContentLoaded', async () => {
       const $ = (id) => document.getElementById(id);
+      const last = $('last');
 
-      const showToast = (msg) => { const t=$('toast'); t.textContent=msg; t.style.display='block'; setTimeout(()=>t.style.display='none',1500); };
-      const log = (msg) => { const li=document.createElement('li'); li.textContent=msg; $('log').prepend(li); };
+      // --- 🔍 Firebase 初期化チェック ---
+      try {
+        console.log('%c[Firebase診断開始]','color:green;font-weight:bold;');
+        if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
+        console.log('✅ firebase SDK version:', firebase.SDK_VERSION);
 
-      $('orderBtn').addEventListener('click', async () => {
-        const n = parseInt(($('count').value||'').trim(), 10);
-        if (!n || n < 1) { alert('1以上の個数を入力してください'); return; }
+        if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
 
-        // /okonomiOrders/{pushId} に {count, createdAt} を保存
-        const ref = db.ref('okonomiOrders').push();
-        await ref.set({
-          count: n,
-          createdAt: firebase.database.ServerValue.TIMESTAMP
+        const app = firebase.app();
+        console.log('✅ app.name:', app.name);
+        console.log('✅ databaseURL:', app.options.databaseURL || '(未設定)');
+        if (!app.options.databaseURL) {
+          throw new Error('Realtime Database のURLが設定されていません（RTDB未作成 or init.js読み込みエラー）');
+        }
+
+        if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
+
+        const db = firebase.database();
+        console.log('✅ firebase.database() 初期化OK:', db.name || 'default');
+
+        // --- 🌟 注文保存機能 ---
+        const showToast = (msg) => {
+          const t = $('toast'); t.textContent = msg; t.style.display='block';
+          setTimeout(()=>t.style.display='none',1500);
+        };
+        const log = (msg) => {
+          const li=document.createElement('li');
+          li.textContent=msg;
+          $('log').prepend(li);
+        };
+
+        $('orderBtn').addEventListener('click', async () => {
+          const n = parseInt(($('count').value||'').trim(), 10);
+          if (!n || n < 1) return alert('1以上の個数を入力してください');
+
+          try {
+            const ref = db.ref('okonomiOrders').push();
+            await ref.set({
+              count: n,
+              createdAt: firebase.database.ServerValue.TIMESTAMP
+            });
+            $('last').textContent = `保存しました（ID: ${ref.key} / ${n}個）`;
+            showToast('注文を保存しました');
+            log(`注文: お好み焼き ${n}個`);
+            $('count').value = 1;
+            console.log('✅ データ保存完了:', { id: ref.key, count: n });
+          } catch (e) {
+            console.error('❌ データ保存エラー', e);
+            alert('保存に失敗しました: ' + (e.message || e));
+          }
         });
-
-        $('last').textContent = `保存しました（ID: ${ref.key} / ${n}個）`;
-        showToast('注文を保存しました');
-        log(`注文: お好み焼き ${n}個`);
-        $('count').value = 1;
-      });
+      } catch (err) {
+        console.error('%c[Firebase初期化エラー]','color:red;font-weight:bold;', err);
+        last.textContent = '初期化エラー: ' + (err.message || err);
+        alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
+      }
     });
   </script>
 </body>
