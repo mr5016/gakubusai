@@ -75,7 +75,10 @@
   </div>
 
   <script>
-  // Firestore参照
+document.addEventListener('DOMContentLoaded', () => {
+  // ここから中身（↓あなたのコード↓）
+
+  // Firestore参照（firebaseが確実に定義済みのタイミングで実行）
   const db = firebase.firestore();
 
   // UI
@@ -88,10 +91,13 @@
 
   function render(){ countEl.textContent = qty }
 
-  minusBtn.onclick = () => { qty = Math.max(1, qty-1); render(); };
-  plusBtn.onclick  = () => { qty = Math.min(99, qty+1); render(); };
+  // 念のため既定動作をブロック（フォームに入れても安全）
+  const safe = (fn) => (e) => { e?.preventDefault?.(); fn(e); };
 
-  submitBtn.onclick = async () => {
+  minusBtn.addEventListener('click', safe(() => { qty = Math.max(1, qty-1); render(); }));
+  plusBtn .addEventListener('click', safe(() => { qty = Math.min(99, qty+1); render(); }));
+
+  submitBtn.addEventListener('click', safe(async () => {
     submitBtn.disabled = true;
     try{
       const ref = await db.collection('orders').add({
@@ -99,8 +105,6 @@
         status: 'new',
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-
-      // UIリセット＆完了表示
       qty = 1; render();
       toastEl.textContent = `注文を登録しました（ID: ${ref.id.slice(0,6)}…）`;
       toastEl.style.display = 'block';
@@ -111,9 +115,12 @@
     }finally{
       submitBtn.disabled = false;
     }
-  };
+  }));
 
   render();
+
+  // ここまで（↑あなたのコード↑）
+});
 </script>
 
 </body>
