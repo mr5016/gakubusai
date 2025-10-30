@@ -197,32 +197,55 @@
 
     // Firebase購読
     document.addEventListener('DOMContentLoaded', () => {
-      try{
+    try{
+        // --- Firebase 初期化チェック ---
         if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
         if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
         if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが未読込）');
 
         const db = firebase.database();
-        // 直近200件を監視（必要に応じて増減可）
-        const ref = db.ref('orders').orderByChild('createdAt').limitToLast(200);
 
-        ref.on('child_added', snap=>{
-          const id = snap.key, val = snap.val() || {};
-          mem.set(id, val); render();
-        });
-        ref.on('child_changed', snap=>{
-          const id = snap.key, val = snap.val() || {};
-          mem.set(id, val); render();
-        });
-        ref.on('child_removed', snap=>{
-          const id = snap.key;
-          mem.delete(id); render();
+        // --- okonomiOrders を監視（createdAt 昇順で使うため、直近200件を購読）---
+        const refOk = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
+
+        // 表示用に受付データを調理場のフォーマットへ変換
+        const toKitchenModel = (v) => ({
+        orderNo: null,
+        name: v.name || '',
+        menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
+        status: v.status === 'done' ? 'done' : 'new',
+        createdAt: v.createdAt || 0
         });
 
-      }catch(err){
+        const key = (id) => `ok-${id}`; // 衝突回避のプレフィックス
+
+        // 追加
+        refOk.on('child_added', (snap) => {
+        const id = key(snap.key);
+        const v = snap.val() || {};
+        mem.set(id, toKitchenModel(v));
+        render();
+        });
+
+        // 変更
+        refOk.on('child_changed', (snap) => {
+        const id = key(snap.key);
+        const v = snap.val() || {};
+        mem.set(id, toKitchenModel(v));
+        render();
+        });
+
+        // 削除
+        refOk.on('child_removed', (snap) => {
+        const id = key(snap.key);
+        mem.delete(id);
+        render();
+        });
+
+    }catch(err){
         console.error('[Firebase初期化エラー]', err);
-        alert('Firebaseの初期化に失敗しました。\\n' + (err.message || err));
-      }
+        alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
+    }
     });
   </script>
 </body>
