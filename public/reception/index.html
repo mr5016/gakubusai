@@ -19,9 +19,14 @@
       --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
     }
     *{box-sizing:border-box}
-    body {
+    html, body {
     margin: 0;
-    padding: 0; /* ← スマホのズレ防止 */
+    padding: 0;
+    width: 100%;
+    overflow-x: hidden; /* 安全策：横はみ出しを隠す */
+  }
+
+  body {
     background: var(--bg);
     color: var(--ink);
     font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
@@ -29,13 +34,13 @@
   }
 
   .wrap {
-    width: min(880px, 100%);
-    margin: 0 auto;
+    width: 100%;
+    max-width: 880px;        /* ← 幅は100%で上限だけ設定 */
+    margin: 0 auto;          /* ← 中央寄せ */
     display: grid;
     gap: 18px;
-    padding: 20px; /* ← body から移動してここに設定 */
-    max-width: 100%;
-    overflow-x: hidden; /* ← さらにズレ防止（安全策） */
+    padding: 20px;           /* ← 余白はこちらに集約 */
+    box-sizing: border-box;  /* 念のため（全体にも*があればOK） */
   }
     .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
     h1{margin:0 0 6px; font-weight:900}
@@ -49,21 +54,21 @@
 
     /* ===== 数量操作（新UI） ===== */
     .qty-row{
-      margin-top:12px;
-      margin-bottom:8px;
-      width:100%;
-      max-width:560px;
-      display:grid;
-      grid-template-columns: 1fr 76px minmax(160px, 220px);
-      gap:12px;
-      align-items:stretch;
+    margin-top:12px;
+    margin-bottom:8px;
+    width:100%;
+    max-width:560px;
+    display:grid;
+    grid-template-columns: minmax(0,1fr) 76px minmax(160px, 220px); /* ← 修正 */
+    gap:12px;
+    align-items:stretch;
+  }
+  @media (max-width: 420px){
+    .qty-row{
+      grid-template-columns: minmax(0,1fr) 64px minmax(140px, 1fr); /* ← 修正 */
+      gap:10px;
     }
-    @media (max-width: 420px){
-      .qty-row{
-        grid-template-columns: 1fr 64px minmax(140px, 1fr);
-        gap:10px;
-      }
-    }
+  }
 
     .qty-box{
       display:flex; align-items:center; justify-content:center;
@@ -141,6 +146,9 @@
     .order-item{
       display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
       border:2px solid var(--ring); border-radius:16px; padding:10px 12px; background:#fff;
+    }
+    .order-item, .order-main, .items, .qty-row > * {
+      min-width: 0;
     }
     .order-main{ display:flex; gap:12px; align-items:baseline; flex-wrap:wrap }
     .time{ font-weight:900; }
