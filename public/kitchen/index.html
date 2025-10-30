@@ -88,6 +88,13 @@
       cursor:default;
       box-shadow:none;
     }
+    .ticket-chip{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:6px 12px; border-radius:12px; border:2px solid transparent;
+    font-weight:900; font-size:16px; line-height:1; letter-spacing:.2px;
+    background:var(--accent); color:#fff;
+    box-shadow:0 4px 12px rgba(255,145,77,.35);
+  }
   </style>
 </head>
 <body>
@@ -114,13 +121,7 @@
         </div>
 
         <div>
-          <div class="section-title">
-            <h2>完了済みの注文</h2>
-            <span class="badge">件数: <b id="count-done">0</b></span>
-          </div>
-          <div id="list-done" class="order-list"></div>
-          <div id="empty-done" class="empty" style="display:none">完了済みの注文はまだありません</div>
-        </div>
+          
       </div>
     </section>
   </div>
@@ -155,74 +156,70 @@
 
     // ノード→要素化
     function orderEl(id, o){
-      const el = document.createElement('div');
-      el.className = 'order';
-      el.id = `ord-${id}`;
+    const el = document.createElement('div');
+    el.className = 'order';
+    el.id = `ord-${id}`;
 
-      const left = document.createElement('div');
-      left.className = 'order-main';
+    const left = document.createElement('div');
+    left.className = 'order-main';
 
-      const no = document.createElement('span');
-      no.className = 'orderno';
-      no.textContent = o.orderNo ? `#${o.orderNo}` : `ID:${id.slice(-6)}`;
+    // ★ IDやorderNoは表示しない
+    // 時刻
+    const time = document.createElement('span');
+    time.className = 'time stamp';
+    time.textContent = fmt(o.createdAt);
 
-      const time = document.createElement('span');
-      time.className = 'time stamp';
-      time.textContent = fmt(o.createdAt);
-
-      const itemsBox = document.createElement('div');
-      itemsBox.className = 'items';
-      // menu: [{item, qty, note}]
-      (Array.isArray(o.menu) ? o.menu : []).forEach(it=>{
-        const pill = document.createElement('span');
-        pill.className = 'pill';
-        const nm = document.createElement('span'); nm.textContent = it.item || '—';
-        const q  = document.createElement('span'); q.className = 'qty'; q.textContent = `×${it.qty ?? '-'}`;
-        pill.append(nm, q);
-        itemsBox.appendChild(pill);
-      });
-
-      left.append(no, time, itemsBox);
-
-      const right = document.createElement('div');
-      right.className = 'right';
-      const st = document.createElement('span');
-      st.className = 'status-chip';
-      st.textContent = (o.status === 'done') ? '完了' : (o.status || 'new');
-      right.appendChild(st);
-
-      el.append(left, right);
-      return el;
+    // ★ 整理券バッジ（あるときだけ表示）
+    if (o.ticketNo != null) {
+      const chip = document.createElement('span');
+      chip.className = 'ticket-chip';
+      chip.textContent = `#${o.ticketNo}`;
+      left.append(chip);
     }
+
+    // 注文内容
+    const itemsBox = document.createElement('div');
+    itemsBox.className = 'items';
+    (Array.isArray(o.menu) ? o.menu : []).forEach(it=>{
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      const nm = document.createElement('span'); nm.textContent = it.item || '—';
+      const q  = document.createElement('span'); q.className = 'qty'; q.textContent = `×${it.qty ?? '-'}`;
+      pill.append(nm, q);
+      itemsBox.appendChild(pill);
+    });
+
+    left.append(time, itemsBox);
+
+    const right = document.createElement('div');
+    right.className = 'right';
+    const st = document.createElement('span');
+    st.className = 'status-chip';
+    st.textContent = '受付中';       // activeだけなので固定表示でもOK
+    right.appendChild(st);
+
+    el.append(left, right);
+    return el;
+  }
 
     // メモリ上で全集約→セクションごとに古い順で描画
     const mem = new Map(); // id -> order
 
     function render(){
-      // partition
-      const active = [], done = [];
-      mem.forEach((v, id)=>{
-        if(v.status === 'done') done.push({id, ...v});
-        else active.push({id, ...v}); // 'new' 他も未完了扱い
-      });
+    const active = [];
+    mem.forEach((v, id)=>{ active.push({id, ...v}); });
 
-      // 古い順（createdAt昇順）
-      const byOldest = (a,b)=> (a.createdAt??0) - (b.createdAt??0);
-      active.sort(byOldest);
-      done.sort(byOldest);
+    // 古い順
+    active.sort((a,b)=> (a.createdAt??0) - (b.createdAt??0));
 
-      // DOM再構築（シンプルに作り直し）
-      listActive.innerHTML = '';
-      active.forEach(o=> listActive.appendChild(orderEl(o.id, o)));
-      listDone.innerHTML = '';
-      done.forEach(o=> listDone.appendChild(orderEl(o.id, o)));
+    // 再描画
+    listActive.innerHTML = '';
+    active.forEach(o=> listActive.appendChild(orderEl(o.id, o)));
 
-      // 件数 & 空表示
-      cntActive.textContent = active.length;
-      cntDone.textContent = done.length;
-      emptyActive.style.display = active.length ? 'none' : 'block';
-      emptyDone.style.display   = done.length ? 'none' : 'block';
-    }
+    // 件数＆空表示
+    cntActive.textContent = active.length;
+    emptyActive.style.display = active.length ? 'none' : 'block';
+  }
 
     // Firebase購読
    document.addEventListener('DOMContentLoaded', () => {
@@ -235,12 +232,13 @@
   let watching = false;
 
   const toModelFromOkonomi = (v) => ({
-    orderNo: null,
-    name: v.name || '',
-    menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
-    status: v.status === 'done' ? 'done' : 'new',
-    createdAt: v.createdAt || 0,
-  });
+  // orderNo は使わないので保持しない
+  name: v.name || '',
+  menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
+  status: v.status || 'active',
+  ticketNo: (v.ticketNo ?? null),        // ★ 追加
+  createdAt: v.createdAt || 0,
+});
 
   const toModelFromOrders = (v) => ({
     orderNo: v.orderNo ?? null,
@@ -256,12 +254,20 @@
     if (watching) return;
 
     // --- ここで必要な参照を追加 ---
-    const refOk = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
+    const refOk = db.ref('okonomiOrders').orderByChild('status').equalTo('active');
     // もし /orders も読むならコメントアウト解除
     // const refOrders = db.ref('orders').orderByChild('createdAt').limitToLast(200);
 
     const onAddOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
-    const onChgOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
+    const onChgOk = (s) => {
+      const v = toModelFromOkonomi(s.val()||{});
+      if (v.status !== 'active') {            // ★ active 以外（doneなど）は一覧から除外
+        mem.delete(`ok-${s.key}`);
+      } else {
+        mem.set(`ok-${s.key}`, v);
+      }
+      render();
+    };
     const onDelOk = (s) => { mem.delete(`ok-${s.key}`); render(); };
 
     refOk.on('child_added', onAddOk);

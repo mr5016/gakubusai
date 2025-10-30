@@ -409,7 +409,7 @@ $('decTicket').addEventListener('click', () => { bumpTicketNext(-1); });
       showToast('保存しました');
 
       // 1回だけ付与する運用：成功後OFFに戻す
-      if (ticketEnabled) { ticketEnabled = false; paintTicketToggle(); }
+      //if (ticketEnabled) { ticketEnabled = false; paintTicketToggle(); }
 
       qty = 1; paintQty();
     }catch(err){
