@@ -122,6 +122,13 @@
       padding:18px; border-radius:16px; text-align:center; font-weight:800;
     }
     .note{font-size:12px; color:var(--muted)}
+    /* 既存CSSのどこかに追加 */
+    .pm-btn,
+    .order-btn {
+      touch-action: manipulation;     /* 素早い連打でもダブルタップズームを無効化 */
+      -webkit-user-select: none;
+      user-select: none;
+    }
   </style>
 </head>
 <body>
