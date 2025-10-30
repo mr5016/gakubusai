@@ -129,10 +129,39 @@
       -webkit-user-select: none;
       user-select: none;
     }
+    /* ===== ページ間ナビ（小さめボタン） ===== */
+    .topnav{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center; margin-bottom:8px;
+    }
+    .navbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 12px;
+      border-radius:999px; border:2px solid var(--ring);
+      background:#fff; color:var(--ink); text-decoration:none;
+      font-weight:900; font-size:14px; line-height:1;
+      min-height:40px;    /* スマホでも押しやすい */
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      transition:transform .04s ease-in, background .12s ease-in;
+    }
+    .navbtn:active{ transform:translateY(1px) }
+    .navbtn.primary{ background:var(--accent); color:#fff; border-color:transparent; }
+    .navbtn.ghost{ background:#fff; }
+    .navbtn.current{
+      background:#f4f0ea;
+      border-color:var(--ring);
+      cursor:default;
+      box-shadow:none;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
+    <nav class="topnav" aria-label="ページ移動">
+    <a class="navbtn ghost"   href="../index.html">ホーム</a>
+    <a class="navbtn ghost"   href="../kitchen/">調理場</a>
+    <span class="navbtn current" aria-current="page">受付</span>
+  </nav>
     <h1>受付</h1>
 
     <!-- 入力カード -->
