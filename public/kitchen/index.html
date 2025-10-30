@@ -92,68 +92,6 @@
 </head>
 <body>
   <div class="wrap">
-<<<<<<< HEAD
-    <div class="head">
-      <div class="title">
-        <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
-          <ellipse cx="60" cy="70" rx="48" ry="26" fill="#b5651d"/>
-          <ellipse cx="60" cy="66" rx="50" ry="28" fill="#d09a58"/>
-          <ellipse cx="60" cy="60" rx="44" ry="22" fill="#5a2a13"/>
-          <path d="M20,54 C38,49 44,67 60,62 C76,57 82,75 100,70" fill="none" stroke="#fff7df" stroke-width="6"/>
-          <circle cx="46" cy="58" r="2" fill="#2f6b3a"/><circle cx="70" cy="62" r="2" fill="#2f6b3a"/><circle cx="84" cy="56" r="2" fill="#2f6b3a"/>
-          <path d="M30,52 q6,-6 12,0 q-6,6 -12,0Z" fill="#ffe6c7" opacity=".8"/>
-        </svg>
-        <h1>🍳 調理場</h1>
-      </div>
-      <div><a href="/">← 管理ポータル</a></div>
-    </div>
-
-    <div class="card" role="region" aria-label="注文合計">
-      <p class="muted">受付から登録されたお好み焼きの<strong>合計個数</strong>を表示します（キャンセル除外）。</p>
-      <p class="big" id="total">0</p>
-    </div>
-
-    <div class="card" style="margin-top:12px" role="region" aria-label="最新の注文">
-      <p class="muted">最新の注文（20件まで）</p>
-      <div id="list" class="list" aria-live="polite"></div>
-    </div>
-  </div>
-
-  <script>
-    const totalEl = document.getElementById('total');
-    const listEl = document.getElementById('list');
-
-    // 全注文を監視して合計を算出（status !== "canceled"）
-    firebase.firestore().collection('orders')
-      .where('status','!=','canceled') // 注意: これだけだと不等号クエリの仕様上 index が必要になる場合あり
-      .orderBy('status')               // Firestore の制約に合わせて orderBy を追加
-      .onSnapshot(snap => {
-        let total = 0;
-        snap.forEach(doc => { const d = doc.data(); total += Number(d.qty||0); });
-        totalEl.textContent = total;
-      }, err => {
-        // where('status','!=','canceled')がつらい環境では全件→クライアントで除外に切替
-        console.warn('Query with status != canceled may need an index. Falling back.', err);
-        firebase.firestore().collection('orders')
-          .orderBy('createdAt','desc')
-          .onSnapshot(s2=>{
-            let total=0;
-            s2.forEach(doc=>{ const d=doc.data(); if(d.status!=='canceled') total+=Number(d.qty||0); });
-            totalEl.textContent = total;
-          });
-      });
-
-    // 最新20件をリスト表示
-    firebase.firestore().collection('orders')
-      .orderBy('createdAt','desc').limit(20)
-      .onSnapshot(snap=>{
-        listEl.innerHTML = snap.docs.map(d=>{
-          const x=d.data();
-          const t=x.createdAt?.toDate?.() || new Date();
-          return `<div class="item"><span>🍽️ ${x.qty} 個</span><span class="muted">${t.toLocaleString()}</span></div>`;
-        }).join('');
-      });
-=======
     <nav class="topnav" aria-label="ページ移動">
     <a class="navbtn ghost"   href="../index.html">ホーム</a>
     <span class="navbtn current" aria-current="page">調理場</span>
@@ -359,7 +297,6 @@
   window.addEventListener('pagehide', goIdle);
   window.addEventListener('beforeunload', goIdle);
 });
->>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
   </script>
 </body>
 </html>
