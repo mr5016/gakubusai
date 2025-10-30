@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>売上管理 | 学部祭</title>
+
+  <!-- Firebase (Realtime Database only) -->
+  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番では外す -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+  <!-- フォント -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4;
+      --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
+      line-height:1.6; padding:20px;
+    }
+    .wrap{width:min(880px,100%); margin:0 auto; display:grid; gap:18px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
+    h1{margin:0 0 6px; font-weight:900}
+    h2{margin:0 0 10px; font-weight:900}
+    .muted{color:var(--muted)}
+    .stamp{font-variant-numeric:tabular-nums}
+    #toast{
+      position:fixed; right:16px; bottom:16px; background:#333; color:#fff;
+      padding:12px 14px; border-radius:14px; display:none; font-weight:800
+    }
+
+    /* ===== ページ間ナビ（既存と同調） ===== */
+    .topnav{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center; margin-bottom:8px;
+    }
+    .navbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 12px;
+      border-radius:999px; border:2px solid var(--ring);
+      background:#fff; color:var(--ink); text-decoration:none;
+      font-weight:900; font-size:14px; line-height:1;
+      min-height:40px;
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      transition:transform .04s ease-in, background .12s ease-in;
+      touch-action: manipulation; -webkit-user-select:none; user-select:none;
+    }
+    .navbtn:active{ transform:translateY(1px) }
+    .navbtn.primary{ background:var(--accent); color:#fff; border-color:transparent; }
+    .navbtn.ghost{ background:#fff; }
+    .navbtn.current{
+      background:#f4f0ea; border-color:var(--ring);
+      cursor:default; box-shadow:none;
+    }
+
+    /* ===== ステータス表示 ===== */
+    .stat-grid{
+      display:grid; grid-template-columns:1fr 1fr; gap:12px;
+    }
+    @media (max-width:520px){ .stat-grid{ grid-template-columns:1fr; } }
+
+    .stat{
+      display:flex; flex-direction:column; gap:6px;
+      background:#fff; border:3px solid var(--ring); border-radius:18px; padding:14px;
+      box-shadow:0 8px 20px rgba(0,0,0,.06);
+    }
+    .stat-label{ font-weight:900; color:var(--muted) }
+    .stat-value{ font-weight:900; font-size:40px; line-height:1; letter-spacing:.5px }
+    .yen{ font-feature-settings:"palt" 1; }
+
+    /* 単価入力 */
+    .price-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .price-input{
+      width:140px; padding:10px 12px; border-radius:12px; border:2px solid var(--ring);
+      font-weight:900; background:#fff; box-shadow:0 4px 10px rgba(0,0,0,.05);
+      touch-action: manipulation; -webkit-user-select:none; user-select:none;
+    }
+
+    .note{font-size:12px; color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- ナビ -->
+    <nav class="topnav" aria-label="ページ移動">
+      <a class="navbtn ghost"   href="../index.html">ホーム</a>
+      <a class="navbtn ghost"   href="../kitchen/">調理場</a>
+      <a class="navbtn ghost"   href="../reception/">受付</a>
+      <span class="navbtn current" aria-current="page">売上管理</span>
+    </nav>
+
+    <h1>売上管理</h1>
+
+    <!-- 集計カード -->
+    <section class="card" aria-labelledby="sum-title">
+      <h2 id="sum-title">完了注文の集計</h2>
+      <p class="muted">Realtime Database の <code>okonomiOrders</code> から <code>status: "done"</code> のみを集計します。</p>
+
+      <div class="price-row" style="margin-bottom:10px">
+        <label for="unitPrice" class="muted" style="font-weight:900">単価</label>
+        <input id="unitPrice" class="price-input" type="number" inputmode="numeric" min="0" step="10" value="500" aria-label="単価（円）">
+        <span class="muted">円 / 1枚</span>
+      </div>
+
+      <div class="stat-grid" role="group" aria-label="売上集計">
+        <div class="stat" aria-live="polite">
+          <div class="stat-label">合計個数（完了）</div>
+          <div id="totalCount" class="stat-value">0</div>
+        </div>
+        <div class="stat" aria-live="polite">
+          <div class="stat-label">合計売上</div>
+          <div id="totalRevenue" class="stat-value yen">¥0</div>
+        </div>
+      </div>
+
+      <p id="last" class="muted stamp" style="margin-top:10px"></p>
+      <p class="note">
+        ※「受付」ページで「完了」ボタンを押すと、この集計に反映されます。<br>
+        ※ 単価はここで変更できます（ページを再読み込みすると初期値に戻ります）。
+      </p>
+    </section>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+  // ダブルタップズーム抑止（ピンチは可）
+  (function preventDoubleTapZoom(){
+    let lastTouchEnd = 0;
+    document.addEventListener('touchend', function(e){
+      const now = Date.now();
+      if (now - lastTouchEnd <= 300) e.preventDefault();
+      lastTouchEnd = now;
+    }, { passive:false });
+  })();
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const $ = (id) => document.getElementById(id);
+    const last = $('last');
+    const toast = $('toast');
+    const totalCountEl = $('totalCount');
+    const totalRevenueEl = $('totalRevenue');
+    const unitPriceInput = $('unitPrice');
+
+    const showToast = (msg) => {
+      toast.textContent = msg; toast.style.display = 'block';
+      setTimeout(()=> toast.style.display = 'none', 1200);
+    };
+
+    const formatJPY = (n) => Number(n || 0).toLocaleString('ja-JP', { style:'currency', currency:'JPY', maximumFractionDigits:0 });
+    const renderTotals = () => {
+      const count = Array.from(doneMap.values()).reduce((a,b)=>a+b, 0);
+      totalCountEl.textContent = count;
+      const unit = Math.max(0, Number(unitPriceInput.value)||0);
+      totalRevenueEl.textContent = formatJPY(count * unit);
+      last.textContent = `最終更新: ${new Date().toLocaleString('ja-JP')}`;
+    };
+
+    // Firebase 初期化
+    let db;
+    try{
+      if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
+      if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
+      if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
+      db = firebase.database();
+    }catch(err){
+      console.error('[Firebase初期化エラー]', err);
+      alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
+      return;
+    }
+
+    // 集計用マップ（done のみ保持）
+    const doneMap = new Map(); // id -> count(number)
+
+    const getCount = (data) => {
+      const c = Number(data && data.count);
+      return Number.isFinite(c) && c > 0 ? c : 0;
+    };
+
+    // リスナー
+    let ref = null;
+    let attached = false;
+
+    const onAdded = (snap) => {
+      const id = snap.key;
+      const val = snap.val() || {};
+      doneMap.set(id, getCount(val));
+      renderTotals();
+    };
+    const onChanged = (snap) => {
+      const id = snap.key;
+      const val = snap.val() || {};
+      // このクエリは status == "done" 固定なので、done→done の更新のみここに来る
+      doneMap.set(id, getCount(val));
+      renderTotals();
+    };
+    const onRemoved = (snap) => {
+      const id = snap.key;
+      // done から外れる（削除 or status変更）とここに来る
+      doneMap.delete(id);
+      renderTotals();
+    };
+
+    const attach = () => {
+      if (attached) return;
+      // status == "done" のみを監視
+      ref = db.ref('okonomiOrders').orderByChild('status').equalTo('done');
+
+      ref.on('child_added', onAdded);
+      ref.on('child_changed', onChanged);
+      ref.on('child_removed', onRemoved);
+      attached = true;
+    };
+
+    const detach = () => {
+      if (ref) ref.off();
+      attached = false;
+    };
+
+    function goActive(){ firebase.database().goOnline(); attach(); }
+    function goIdle(){ detach(); firebase.database().goOffline(); }
+
+    // 可視状態で接続制御
+    if (document.hidden) goIdle(); else goActive();
+    document.addEventListener('visibilitychange', () => { if (document.hidden) goIdle(); else goActive(); });
+    window.addEventListener('pagehide', goIdle);
+    window.addEventListener('beforeunload', goIdle);
+
+    // 単価が変わったら再計算
+    unitPriceInput.addEventListener('input', renderTotals);
+
+    // 初期描画
+    renderTotals();
+  });
+  </script>
+</body>
+</html>
