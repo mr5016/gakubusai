@@ -1,89 +1,229 @@
 <!DOCTYPE html>
-</svg>
-受付 <span id="conn" class="badge">接続中...</span>
-</h1>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>調理場 | 注文一覧</title>
 
+  <!-- Firebase (Realtime Database only) -->
+  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番では外す -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
 
-<div class="row"><input id="name" placeholder="お名前（呼び出しに便利）"></div>
+  <!-- 受付側と同じ丸め＆太字系フォント -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
 
+  <style>
+    :root{
+      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4;
+      --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
+      line-height:1.6; padding:20px;
+    }
+    .wrap{width:min(980px,100%); margin:0 auto; display:grid; gap:18px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
+    h1{margin:0 0 6px; font-weight:900}
+    h2{margin:0 0 10px; font-weight:900}
+    .muted{color:var(--muted)}
+    .stamp{font-variant-numeric:tabular-nums}
+    nav a{margin-right:12px; color:var(--muted); text-decoration:none; font-weight:800}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 12px; border-radius:999px; border:2px solid var(--ring);
+      background:#fff; font-weight:900;
+    }
 
-<div class="items" id="menu-list">
-<div class="line">
-<select class="item">
-<option>お好み焼き(豚)</option>
-<option>お好み焼き(いか)</option>
-<option>焼きそば</option>
-<option>ドリンク</option>
-</select>
-<input class="qty" type="number" min="1" value="1">
-<input class="note" placeholder="備考（辛め、マヨ少なめ 等）">
-</div>
-</div>
+    /* 注文リストの見た目（受付と同系統） */
+    .lists{ display:grid; gap:18px }
+    .section-title{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+    .order-list{ display:grid; gap:12px; }
+    .empty{
+      border:2px dashed var(--ring); background:#fff; color:var(--muted);
+      padding:18px; border-radius:16px; text-align:center; font-weight:800;
+    }
 
+    .order{
+      background:#fff; border:2px solid var(--ring); border-radius:16px; padding:12px;
+      display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
+    }
+    .order-main{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:baseline }
+    .orderno{ font-weight:900; }
+    .time{ font-weight:900; }
+    .items{ display:flex; flex-wrap:wrap; gap:10px 12px; }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px; border:2px solid var(--ring); background:#fff; font-weight:900;
+    }
+    .qty{ font-weight:900; }
+    .right{ display:flex; align-items:center; gap:8px; }
+    .status-chip{
+      padding:6px 10px; border-radius:999px; font-weight:900;
+      background:#fff; border:2px solid var(--ring); color:var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav><a href="/index.html">🏠 トップ</a> / <strong>調理場</strong></nav>
+    <h1>調理場 <span id="conn" class="badge">接続中...</span></h1>
+    <p class="muted">Realtime Database の注文を自動更新で表示します。未完了は上、完了済みは下。どちらも「古い順」です。</p>
 
-<div class="row" style="justify-content:space-between">
-<button id="add" class="btn sec" type="button">＋ 行を追加</button>
-<button id="submit" class="btn" type="button">注文を登録</button>
-</div>
-</div>
-</div>
+    <section class="card">
+      <div class="lists">
+        <div>
+          <div class="section-title">
+            <h2>未完了の注文</h2>
+            <span class="badge">件数: <b id="count-active">0</b></span>
+          </div>
+          <div id="list-active" class="order-list"></div>
+          <div id="empty-active" class="empty" style="display:none">未完了の注文はありません</div>
+        </div>
 
+        <div>
+          <div class="section-title">
+            <h2>完了済みの注文</h2>
+            <span class="badge">件数: <b id="count-done">0</b></span>
+          </div>
+          <div id="list-done" class="order-list"></div>
+          <div id="empty-done" class="empty" style="display:none">完了済みの注文はまだありません</div>
+        </div>
+      </div>
+    </section>
+  </div>
 
-<script src="/app/shared.js"></script>
-<script>
-const connEl = document.getElementById('conn');
-bindConnectionBadge(connEl);
+  <!-- 任意：受付側と同じ接続バッジ等を使いたい場合 -->
+  <script src="/app/shared.js"></script>
 
+  <script>
+    // 接続バッジ（shared.jsに bindConnectionBadge がある場合）
+    try{
+      if (typeof bindConnectionBadge === 'function') {
+        bindConnectionBadge(document.getElementById('conn'));
+      }
+    }catch(e){ /* なくてもOK */ }
 
-document.getElementById('add').onclick = () => {
-const row = document.querySelector('#menu-list .line').cloneNode(true);
-row.querySelector('.qty').value = 1; row.querySelector('.note').value = '';
-document.getElementById('menu-list').appendChild(row);
-};
+    const $ = (id)=>document.getElementById(id);
+    const listActive = $('list-active');
+    const listDone   = $('list-done');
+    const emptyActive = $('empty-active');
+    const emptyDone   = $('empty-done');
+    const cntActive = $('count-active');
+    const cntDone   = $('count-done');
 
+    // 表示用：時刻フォーマット
+    const fmt = (ms)=>{
+      if(!ms) return '—';
+      const d = new Date(ms);
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+      const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+      return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
+    };
 
-async function collectForm(){
-const name = document.getElementById('name').value.trim();
-const rows = Array.from(document.querySelectorAll('#menu-list .line'));
-const menu = rows.map(r=>({
-item: r.querySelector('.item').value,
-qty: parseInt(r.querySelector('.qty').value || '0',10),
-note: r.querySelector('.note').value.trim()
-})).filter(x=>x.qty>0);
-if(menu.length===0) throw new Error('品目がありません');
-return { name, menu };
-}
+    // ノード→要素化
+    function orderEl(id, o){
+      const el = document.createElement('div');
+      el.className = 'order';
+      el.id = `ord-${id}`;
 
+      const left = document.createElement('div');
+      left.className = 'order-main';
 
-let sending = false;
-document.getElementById('submit').onclick = async () => {
-if(sending) return; sending = true;
-const btn = document.getElementById('submit');
-btn.disabled = true; btn.textContent = '送信中...';
+      const no = document.createElement('span');
+      no.className = 'orderno';
+      no.textContent = o.orderNo ? `#${o.orderNo}` : `ID:${id.slice(-6)}`;
 
+      const time = document.createElement('span');
+      time.className = 'time stamp';
+      time.textContent = fmt(o.createdAt);
 
-try{
-const { name, menu } = await collectForm();
-const orderNo = await allocateOrderNo();
-const ordersRef = firebase.database().ref('orders');
-const newRef = ordersRef.push();
-await newRef.set({
-orderNo,
-name,
-menu,
-status: 'new',
-createdAt: serverTimestamp(),
-updatedAt: serverTimestamp()
-});
-toast(`注文 #${orderNo} を登録しました`);
-document.getElementById('name').value='';
-document.querySelectorAll('#menu-list .line').forEach((r,i)=>{ if(i>0) r.remove(); });
-}catch(err){
-console.error(err); toast(err.message||'保存に失敗しました', false);
-}finally{
-sending = false; btn.disabled=false; btn.textContent='注文を登録';
-}
-};
-</script>
+      const itemsBox = document.createElement('div');
+      itemsBox.className = 'items';
+      // menu: [{item, qty, note}]
+      (Array.isArray(o.menu) ? o.menu : []).forEach(it=>{
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        const nm = document.createElement('span'); nm.textContent = it.item || '—';
+        const q  = document.createElement('span'); q.className = 'qty'; q.textContent = `×${it.qty ?? '-'}`;
+        pill.append(nm, q);
+        itemsBox.appendChild(pill);
+      });
+
+      left.append(no, time, itemsBox);
+
+      const right = document.createElement('div');
+      right.className = 'right';
+      const st = document.createElement('span');
+      st.className = 'status-chip';
+      st.textContent = (o.status === 'done') ? '完了' : (o.status || 'new');
+      right.appendChild(st);
+
+      el.append(left, right);
+      return el;
+    }
+
+    // メモリ上で全集約→セクションごとに古い順で描画
+    const mem = new Map(); // id -> order
+
+    function render(){
+      // partition
+      const active = [], done = [];
+      mem.forEach((v, id)=>{
+        if(v.status === 'done') done.push({id, ...v});
+        else active.push({id, ...v}); // 'new' 他も未完了扱い
+      });
+
+      // 古い順（createdAt昇順）
+      const byOldest = (a,b)=> (a.createdAt??0) - (b.createdAt??0);
+      active.sort(byOldest);
+      done.sort(byOldest);
+
+      // DOM再構築（シンプルに作り直し）
+      listActive.innerHTML = '';
+      active.forEach(o=> listActive.appendChild(orderEl(o.id, o)));
+      listDone.innerHTML = '';
+      done.forEach(o=> listDone.appendChild(orderEl(o.id, o)));
+
+      // 件数 & 空表示
+      cntActive.textContent = active.length;
+      cntDone.textContent = done.length;
+      emptyActive.style.display = active.length ? 'none' : 'block';
+      emptyDone.style.display   = done.length ? 'none' : 'block';
+    }
+
+    // Firebase購読
+    document.addEventListener('DOMContentLoaded', () => {
+      try{
+        if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
+        if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
+        if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが未読込）');
+
+        const db = firebase.database();
+        // 直近200件を監視（必要に応じて増減可）
+        const ref = db.ref('orders').orderByChild('createdAt').limitToLast(200);
+
+        ref.on('child_added', snap=>{
+          const id = snap.key, val = snap.val() || {};
+          mem.set(id, val); render();
+        });
+        ref.on('child_changed', snap=>{
+          const id = snap.key, val = snap.val() || {};
+          mem.set(id, val); render();
+        });
+        ref.on('child_removed', snap=>{
+          const id = snap.key;
+          mem.delete(id); render();
+        });
+
+      }catch(err){
+        console.error('[Firebase初期化エラー]', err);
+        alert('Firebaseの初期化に失敗しました。\\n' + (err.message || err));
+      }
+    });
+  </script>
 </body>
 </html>
