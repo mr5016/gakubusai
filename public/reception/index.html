@@ -127,182 +127,229 @@
   <div id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const $ = (id) => document.getElementById(id);
-      const display = $('display');
-      const previewQty = $('previewQty');
-      const last = $('last');
-      const toast = $('toast');
-      const listEl = $('orderList');
-      const emptyEl = $('empty');
+document.addEventListener('DOMContentLoaded', () => {
+  const $ = (id) => document.getElementById(id);
+  const display = $('display');
+  const previewQty = $('previewQty');
+  const last = $('last');
+  const toast = $('toast');
+  const listEl = $('orderList');
+  const emptyEl = $('empty');
 
-      // ---- 個数状態（±のみ） ----
-      let qty = 1;
-      const clamp = (n) => Math.max(0, Math.min(999, n));
-      const paintQty = () => { display.textContent = qty; previewQty.textContent = qty; };
+  // ---- 個数状態（±のみ） ----
+  let qty = 1;
+  const clamp = (n) => Math.max(0, Math.min(999, n));
+  const paintQty = () => { display.textContent = qty; previewQty.textContent = qty; };
 
-      $('minus1').addEventListener('click', () => { qty = clamp(qty - 1); paintQty(); });
-      $('plus1').addEventListener('click', () => { qty = clamp(qty + 1); paintQty(); });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === '+') { qty = clamp(qty + 1); paintQty(); }
-        if (e.key === 'ArrowDown' || e.key === '-') { qty = clamp(qty - 1); paintQty(); }
-        if (e.key === 'Enter') { $('save').click(); }
+  $('minus1').addEventListener('click', () => { qty = clamp(qty - 1); paintQty(); });
+  $('plus1').addEventListener('click', () => { qty = clamp(qty + 1); paintQty(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === '+') { qty = clamp(qty + 1); paintQty(); }
+    if (e.key === 'ArrowDown' || e.key === '-') { qty = clamp(qty - 1); paintQty(); }
+    if (e.key === 'Enter') { $('save').click(); }
+  });
+
+  const showToast = (msg) => {
+    toast.textContent = msg; toast.style.display = 'block';
+    setTimeout(()=> toast.style.display = 'none', 1200);
+  };
+
+  const formatTime = (ms) => {
+    const d = new Date(ms);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const ss = String(d.getSeconds()).padStart(2,'0');
+    return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
+  };
+
+  const renderEmpty = () => {
+    const hasItem = listEl.children.length > 0;
+    emptyEl.style.display = hasItem ? 'none' : 'block';
+  };
+
+  // ---- Firebase 初期化 ----
+  let db;
+  try{
+    if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
+    if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
+    if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
+    db = firebase.database();
+  }catch(err){
+    console.error('[Firebase初期化エラー]', err);
+    alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
+    return;
+  }
+
+  // ---- 保存処理 ----
+  $('save').addEventListener('click', async () => {
+    if (!qty || qty < 1) { alert('1以上で保存してください'); return; }
+    try{
+      // 送信前に確実にオンライン化（念のため）
+      firebase.database().goOnline();
+      const ref = db.ref('okonomiOrders').push();
+      await ref.set({
+        item: 'お好み焼き',
+        count: qty,
+        status: 'active', // 未完了
+        createdAt: firebase.database.ServerValue.TIMESTAMP
       });
+      last.textContent = `保存しました（ID: ${ref.key} / お好み焼き × ${qty}）`;
+      showToast('保存しました');
+      qty = 1; paintQty();
+    }catch(err){
+      console.error('❌ 保存エラー', err);
+      alert('保存に失敗しました: ' + (err.message || err));
+    }
+  });
 
-      const showToast = (msg) => {
-        toast.textContent = msg; toast.style.display = 'block';
-        setTimeout(()=> toast.style.display = 'none', 1200);
-      };
+  // ---- 一覧（未完了のみ／古い順） ----
+  const nodeMap = new Map(); // id -> element
 
-      // ---- Firebase 初期化チェック ----
-      let db;
+  const makeOrderEl = (id, data) => {
+    const li = document.createElement('div');
+    li.className = 'order-item';
+    li.id = `order-${id}`;
+    li.dataset.ts = String(data.createdAt || 0); // 並べ替え用
+
+    const left = document.createElement('div');
+    left.className = 'order-main';
+
+    const time = document.createElement('span');
+    time.className = 'time stamp';
+    time.textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+
+    const item = document.createElement('span');
+    item.className = 'item';
+    item.textContent = data.item || '—';
+
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = `× ${data.count ?? '—'}`;
+
+    left.append(time, item, count);
+
+    const right = document.createElement('div');
+    right.className = 'btns';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'btn cancel';
+    btnCancel.textContent = '取り消し';
+    btnCancel.addEventListener('click', async () => {
+      if (!confirm('この注文を削除します。よろしいですか？')) return;
       try{
-        if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
-        if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
-        if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
-        db = firebase.database();
+        await db.ref(`okonomiOrders/${id}`).remove();
+        showToast('削除しました');
       }catch(err){
-        console.error('[Firebase初期化エラー]', err);
-        alert('Firebaseの初期化に失敗しました。\\n' + (err.message || err));
-        return;
+        alert('削除に失敗しました: ' + (err.message || err));
       }
-
-      // ---- 保存処理 ----
-      $('save').addEventListener('click', async () => {
-        if (!qty || qty < 1) { alert('1以上で保存してください'); return; }
-        try{
-          const ref = db.ref('okonomiOrders').push();
-          await ref.set({
-            item: 'お好み焼き',
-            count: qty,
-            status: 'active', // 未完了
-            createdAt: firebase.database.ServerValue.TIMESTAMP
-          });
-          last.textContent = `保存しました（ID: ${ref.key} / お好み焼き × ${qty}）`;
-          showToast('保存しました');
-          qty = 1; paintQty();
-        }catch(err){
-          console.error('❌ 保存エラー', err);
-          alert('保存に失敗しました: ' + (err.message || err));
-        }
-      });
-
-      // ---- 一覧（未完了のみ） ----
-      const nodeMap = new Map(); // id -> li element
-
-      const formatTime = (ms) => {
-        const d = new Date(ms);
-        const y = d.getFullYear();
-        const m = String(d.getMonth()+1).padStart(2,'0');
-        const dd = String(d.getDate()).padStart(2,'0');
-        const hh = String(d.getHours()).padStart(2,'0');
-        const mm = String(d.getMinutes()).padStart(2,'0');
-        const ss = String(d.getSeconds()).padStart(2,'0');
-        return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
-      };
-
-      const renderEmpty = () => {
-        const hasItem = listEl.children.length > 0;
-        emptyEl.style.display = hasItem ? 'none' : 'block';
-      };
-
-      const makeOrderEl = (id, data) => {
-        const li = document.createElement('div');
-        li.className = 'order-item';
-        li.id = `order-${id}`;
-
-        const left = document.createElement('div');
-        left.className = 'order-main';
-        const time = document.createElement('span');
-        time.className = 'time stamp';
-        time.textContent = data.createdAt ? formatTime(data.createdAt) : '—';
-
-        const item = document.createElement('span');
-        item.className = 'item';
-        item.textContent = data.item || '—';
-
-        const count = document.createElement('span');
-        count.className = 'count';
-        count.textContent = `× ${data.count ?? '—'}`;
-
-        left.append(time, item, count);
-
-        const right = document.createElement('div');
-        right.className = 'btns';
-
-        const btnCancel = document.createElement('button');
-        btnCancel.className = 'btn cancel';
-        btnCancel.textContent = '取り消し';
-        btnCancel.addEventListener('click', async () => {
-          if (!confirm('この注文を削除します。よろしいですか？')) return;
-          try{
-            await db.ref(`okonomiOrders/${id}`).remove();
-            showToast('削除しました');
-          }catch(err){
-            alert('削除に失敗しました: ' + (err.message || err));
-          }
-        });
-
-        const btnDone = document.createElement('button');
-        btnDone.className = 'btn done';
-        btnDone.textContent = '完了';
-        btnDone.addEventListener('click', async () => {
-          try{
-            await db.ref(`okonomiOrders/${id}`).update({
-              status: 'done',
-              completedAt: firebase.database.ServerValue.TIMESTAMP
-            });
-            showToast('完了にしました');
-          }catch(err){
-            alert('更新に失敗しました: ' + (err.message || err));
-          }
-        });
-
-        right.append(btnCancel, btnDone);
-        li.append(left, right);
-        return li;
-      };
-
-      const addOrUpdate = (snap) => {
-        const id = snap.key;
-        const data = snap.val() || {};
-        // active（未完了）のみ表示
-        if (data.status === 'done') {
-          const exist = nodeMap.get(id);
-          if (exist) { exist.remove(); nodeMap.delete(id); renderEmpty(); }
-          return;
-        }
-        let el = nodeMap.get(id);
-        if (!el) {
-          el = makeOrderEl(id, data);
-          // createdAt昇順→下に、にしたいが、簡単に先頭に入れる（新しい順）
-          listEl.prepend(el);
-          nodeMap.set(id, el);
-        } else {
-          // 値の更新（時間・個数など）
-          el.querySelector('.time').textContent = data.createdAt ? formatTime(data.createdAt) : '—';
-          el.querySelector('.item').textContent = data.item || '—';
-          el.querySelector('.count').textContent = `× ${data.count ?? '—'}`;
-        }
-        renderEmpty();
-      };
-
-      const removeNode = (snap) => {
-        const id = snap.key;
-        const el = nodeMap.get(id);
-        if (el) { el.remove(); nodeMap.delete(id); renderEmpty(); }
-      };
-
-      // 直近50件を監視（未完了のみを都度フィルタ）
-      const ordersRef = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(50);
-      ordersRef.on('child_added', addOrUpdate);
-      ordersRef.on('child_changed', addOrUpdate);
-      ordersRef.on('child_removed', removeNode);
-
-      // 初期表示
-      paintQty();
-      renderEmpty();
     });
-  </script>
+
+    const btnDone = document.createElement('button');
+    btnDone.className = 'btn done';
+    btnDone.textContent = '完了';
+    btnDone.addEventListener('click', async () => {
+      try{
+        await db.ref(`okonomiOrders/${id}`).update({
+          status: 'done',
+          completedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        showToast('完了にしました');
+      }catch(err){
+        alert('更新に失敗しました: ' + (err.message || err));
+      }
+    });
+
+    right.append(btnCancel, btnDone);
+    li.append(left, right);
+    return li;
+  };
+
+  // 古い順に差し込み
+  const insertSorted = (el) => {
+    const ts = Number(el.dataset.ts || '0');
+    const children = Array.from(listEl.children);
+    const idx = children.findIndex(child => Number(child.dataset.ts || '0') > ts);
+    if (idx === -1) listEl.appendChild(el); else listEl.insertBefore(el, children[idx]);
+  };
+
+  const upsertRow = (id, data) => {
+    // done は一覧から除外
+    if (data.status === 'done') {
+      const exist = nodeMap.get(id);
+      if (exist) { exist.remove(); nodeMap.delete(id); renderEmpty(); }
+      return;
+    }
+    let el = nodeMap.get(id);
+    if (!el) {
+      el = makeOrderEl(id, data);
+      nodeMap.set(id, el);
+      insertSorted(el);
+    } else {
+      // 更新
+      el.dataset.ts = String(data.createdAt || 0);
+      el.querySelector('.time').textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+      el.querySelector('.item').textContent = data.item || '—';
+      el.querySelector('.count').textContent = `× ${data.count ?? '—'}`;
+      // 並び直し
+      el.remove();
+      insertSorted(el);
+    }
+    renderEmpty();
+  };
+
+  const removeRow = (id) => {
+    const el = nodeMap.get(id);
+    if (el) { el.remove(); nodeMap.delete(id); renderEmpty(); }
+  };
+
+  // ---- 可視状態でリアルタイム接続を制御 ----
+  let ref = null;
+  let attached = false;
+
+  const attachListeners = () => {
+    if (attached) return;
+    ref = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(50);
+
+    ref.on('child_added', (snap) => { upsertRow(snap.key, snap.val() || {}); });
+    ref.on('child_changed', (snap) => { upsertRow(snap.key, snap.val() || {}); });
+    ref.on('child_removed', (snap) => { removeRow(snap.key); });
+
+    attached = true;
+  };
+
+  const detachListeners = () => {
+    if (ref) ref.off();
+    attached = false;
+  };
+
+  function goActive() {
+    firebase.database().goOnline();
+    attachListeners();
+  }
+  function goIdle() {
+    detachListeners();
+    firebase.database().goOffline();
+  }
+
+  // 初期状態
+  if (document.hidden) goIdle(); else goActive();
+
+  // タブの可視/不可視でオン・オフ
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) goIdle(); else goActive();
+  });
+  // ページ離脱時は確実に切断
+  window.addEventListener('pagehide', goIdle);
+  window.addEventListener('beforeunload', goIdle);
+
+  // 初期表示
+  paintQty();
+  renderEmpty();
+});
+</script>
+
 </body>
 </html>

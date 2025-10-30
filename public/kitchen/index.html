@@ -196,57 +196,69 @@
     }
 
     // Firebase購読
-    document.addEventListener('DOMContentLoaded', () => {
-    try{
-        // --- Firebase 初期化チェック ---
-        if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
-        if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
-        if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが未読込）');
+document.addEventListener('DOMContentLoaded', () => {
+  // --- 安全チェック ---
+  if (!window.firebase) { alert('Firebase SDKが読み込まれていません'); return; }
+  if (!firebase.apps.length) { alert('Firebase Appが初期化されていません'); return; }
+  if (typeof firebase.database !== 'function') { alert('Realtime Databaseが使えません'); return; }
 
-        const db = firebase.database();
+  const db = firebase.database();
+  let ref = null;         // DB参照
+  let watching = false;   // リスナーを付けているか
 
-        // --- okonomiOrders を監視（createdAt 昇順で使うため、直近200件を購読）---
-        const refOk = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
+  // 受付の表示モデルに変換（必要に応じて編集OK）
+  const toModel = (v) => ({
+    orderNo: null,
+    name: v.name || '',
+    menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
+    status: v.status === 'done' ? 'done' : 'new',
+    createdAt: v.createdAt || 0,
+  });
 
-        // 表示用に受付データを調理場のフォーマットへ変換
-        const toKitchenModel = (v) => ({
-        orderNo: null,
-        name: v.name || '',
-        menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
-        status: v.status === 'done' ? 'done' : 'new',
-        createdAt: v.createdAt || 0
-        });
+  // ---- 監視の開始/停止（可視状態で制御） ----
+  function startWatch() {
+    if (watching) return;
+    ref = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
 
-        const key = (id) => `ok-${id}`; // 衝突回避のプレフィックス
+    const onAdd = (snap) => { mem.set(`ok-${snap.key}`, toModel(snap.val()||{})); render(); };
+    const onChg = (snap) => { mem.set(`ok-${snap.key}`, toModel(snap.val()||{})); render(); };
+    const onDel = (snap) => { mem.delete(`ok-${snap.key}`); render(); };
 
-        // 追加
-        refOk.on('child_added', (snap) => {
-        const id = key(snap.key);
-        const v = snap.val() || {};
-        mem.set(id, toKitchenModel(v));
-        render();
-        });
+    ref.on('child_added', onAdd);
+    ref.on('child_changed', onChg);
+    ref.on('child_removed', onDel);
 
-        // 変更
-        refOk.on('child_changed', (snap) => {
-        const id = key(snap.key);
-        const v = snap.val() || {};
-        mem.set(id, toKitchenModel(v));
-        render();
-        });
+    // アンマウント関数を保存
+    stopWatch = () => { ref && ref.off(); watching = false; };
+    watching = true;
+  }
 
-        // 削除
-        refOk.on('child_removed', (snap) => {
-        const id = key(snap.key);
-        mem.delete(id);
-        render();
-        });
+  function stopWatch() {
+    // startWatch 内で上書きされるのでダミーで定義、ここでは実体を上書き前提
+  }
 
-    }catch(err){
-        console.error('[Firebase初期化エラー]', err);
-        alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
-    }
-    });
+  // ---- 可視状態に応じてオンライン/オフライン ----
+  function goActive()  { firebase.database().goOnline();  startWatch(); }
+  function goIdle()    { stopWatch(); firebase.database().goOffline(); }
+
+  // 初期判定
+  if (document.hidden) goIdle(); else goActive();
+
+  // タブが隠れたら切断／戻ったら再接続
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) goIdle(); else goActive();
+  });
+
+  // ページ離脱時は確実に切断
+  window.addEventListener('pagehide', goIdle);
+  window.addEventListener('beforeunload', goIdle);
+
+  // （任意）送信ボタンで保存する前に確実にオンライン化したい場合
+  const saveBtn = document.getElementById('save');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => firebase.database().goOnline(), { once: true });
+  }
+});
   </script>
 </body>
 </html>
