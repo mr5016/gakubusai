@@ -65,12 +65,39 @@
       padding:6px 10px; border-radius:999px; font-weight:900;
       background:#fff; border:2px solid var(--ring); color:var(--muted);
     }
+    .topnav{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center; margin-bottom:8px;
+    }
+    .navbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 12px;
+      border-radius:999px; border:2px solid var(--ring);
+      background:#fff; color:var(--ink); text-decoration:none;
+      font-weight:900; font-size:14px; line-height:1;
+      min-height:40px;    /* スマホでも押しやすい */
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      transition:transform .04s ease-in, background .12s ease-in;
+    }
+    .navbtn:active{ transform:translateY(1px) }
+    .navbtn.primary{ background:var(--accent); color:#fff; border-color:transparent; }
+    .navbtn.ghost{ background:#fff; }
+    .navbtn.current{
+      background:#f4f0ea;
+      border-color:var(--ring);
+      cursor:default;
+      box-shadow:none;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <nav><a href="/index.html">🏠 トップ</a> / <strong>調理場</strong></nav>
-    <h1>調理場 <span id="conn" class="badge">接続中...</span></h1>
+    <nav class="topnav" aria-label="ページ移動">
+    <a class="navbtn ghost"   href="../index.html">ホーム</a>
+    <a class="navbtn ghost"   href="../kitchen/">調理場</a>
+    <span class="navbtn current" aria-current="page">受付</span>
+  </nav>
+    <h1>調理場 <span id="conn" class="badge">注文記録</span></h1>
     <p class="muted">Realtime Database の注文を自動更新で表示します。未完了は上、完了済みは下。どちらも「古い順」です。</p>
 
     <section class="card">
@@ -196,18 +223,16 @@
     }
 
     // Firebase購読
-document.addEventListener('DOMContentLoaded', () => {
-  // --- 安全チェック ---
+   document.addEventListener('DOMContentLoaded', () => {
   if (!window.firebase) { alert('Firebase SDKが読み込まれていません'); return; }
   if (!firebase.apps.length) { alert('Firebase Appが初期化されていません'); return; }
   if (typeof firebase.database !== 'function') { alert('Realtime Databaseが使えません'); return; }
 
   const db = firebase.database();
-  let ref = null;         // DB参照
-  let watching = false;   // リスナーを付けているか
+  let refs = [];          // 複数参照に対応
+  let watching = false;
 
-  // 受付の表示モデルに変換（必要に応じて編集OK）
-  const toModel = (v) => ({
+  const toModelFromOkonomi = (v) => ({
     orderNo: null,
     name: v.name || '',
     menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
@@ -215,49 +240,60 @@ document.addEventListener('DOMContentLoaded', () => {
     createdAt: v.createdAt || 0,
   });
 
-  // ---- 監視の開始/停止（可視状態で制御） ----
+  const toModelFromOrders = (v) => ({
+    orderNo: v.orderNo ?? null,
+    name: v.name || '',
+    menu: Array.isArray(v.menu) ? v.menu : [],
+    status: v.status === 'done' ? 'done' : (v.status || 'new'),
+    createdAt: v.createdAt || 0,
+  });
+
+  let stopWatch = () => {};
+
   function startWatch() {
     if (watching) return;
-    ref = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
 
-    const onAdd = (snap) => { mem.set(`ok-${snap.key}`, toModel(snap.val()||{})); render(); };
-    const onChg = (snap) => { mem.set(`ok-${snap.key}`, toModel(snap.val()||{})); render(); };
-    const onDel = (snap) => { mem.delete(`ok-${snap.key}`); render(); };
+    // --- ここで必要な参照を追加 ---
+    const refOk = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
+    // もし /orders も読むならコメントアウト解除
+    // const refOrders = db.ref('orders').orderByChild('createdAt').limitToLast(200);
 
-    ref.on('child_added', onAdd);
-    ref.on('child_changed', onChg);
-    ref.on('child_removed', onDel);
+    const onAddOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
+    const onChgOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
+    const onDelOk = (s) => { mem.delete(`ok-${s.key}`); render(); };
 
-    // アンマウント関数を保存
-    stopWatch = () => { ref && ref.off(); watching = false; };
+    refOk.on('child_added', onAddOk);
+    refOk.on('child_changed', onChgOk);
+    refOk.on('child_removed', onDelOk);
+    refs.push(refOk);
+
+    // /orders を使う場合
+    // const onAddOr = (s) => { mem.set(`or-${s.key}`, toModelFromOrders(s.val()||{})); render(); };
+    // const onChgOr = (s) => { mem.set(`or-${s.key}`, toModelFromOrders(s.val()||{})); render(); };
+    // const onDelOr = (s) => { mem.delete(`or-${s.key}`); render(); };
+    // refOrders.on('child_added', onAddOr);
+    // refOrders.on('child_changed', onChgOr);
+    // refOrders.on('child_removed', onDelOr);
+    // refs.push(refOrders);
+
+    stopWatch = () => {
+      refs.forEach(r => r.off());
+      refs = [];
+      watching = false;
+    };
     watching = true;
   }
 
-  function stopWatch() {
-    // startWatch 内で上書きされるのでダミーで定義、ここでは実体を上書き前提
-  }
+  function goActive() { firebase.database().goOnline(); startWatch(); }
+  function goIdle()   { stopWatch(); firebase.database().goOffline(); }
 
-  // ---- 可視状態に応じてオンライン/オフライン ----
-  function goActive()  { firebase.database().goOnline();  startWatch(); }
-  function goIdle()    { stopWatch(); firebase.database().goOffline(); }
-
-  // 初期判定
   if (document.hidden) goIdle(); else goActive();
 
-  // タブが隠れたら切断／戻ったら再接続
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) goIdle(); else goActive();
   });
-
-  // ページ離脱時は確実に切断
   window.addEventListener('pagehide', goIdle);
   window.addEventListener('beforeunload', goIdle);
-
-  // （任意）送信ボタンで保存する前に確実にオンライン化したい場合
-  const saveBtn = document.getElementById('save');
-  if (saveBtn) {
-    saveBtn.addEventListener('click', () => firebase.database().goOnline(), { once: true });
-  }
 });
   </script>
 </body>
