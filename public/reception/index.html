@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+<<<<<<< HEAD
   <title>受付 | 学部祭</title>
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
@@ -42,10 +43,163 @@
     .big{font-size:22px}
     .muted{color:var(--muted); font-size:13px}
     .toast{margin-top:10px; padding:10px 12px; background:var(--soft); border:2px solid var(--ring); border-radius:14px; display:none}
+=======
+  <title>受付 | お好み焼き注文</title>
+
+  <!-- Firebase (Realtime Database only) -->
+  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番では外す -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+  <!-- 丸くて太めのフォント -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4;
+      --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
+      line-height:1.6; padding:20px;
+    }
+    .wrap{width:min(880px,100%); margin:0 auto; display:grid; gap:18px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
+    h1{margin:0 0 6px; font-weight:900}
+    h2{margin:0 0 10px; font-weight:900}
+    .muted{color:var(--muted)}
+    .stamp{font-variant-numeric:tabular-nums}
+    #toast{
+      position:fixed; right:16px; bottom:16px; background:#333; color:#fff;
+      padding:12px 14px; border-radius:14px; display:none; font-weight:800
+    }
+
+    /* ===== 数量操作（新UI） ===== */
+    .qty-row{
+      margin-top:12px;
+      margin-bottom:8px;
+      width:100%;
+      max-width:560px;          /* スマホでもはみ出しにくい幅 */
+      display:grid;
+      grid-template-columns: 1fr 76px minmax(160px, 220px);
+      gap:12px;
+      align-items:stretch;
+    }
+    @media (max-width: 420px){
+      .qty-row{
+        grid-template-columns: 1fr 64px minmax(140px, 1fr);
+        gap:10px;
+      }
+    }
+
+    /* 個数の大きな正方形ボックス */
+    .qty-box{
+      display:flex; align-items:center; justify-content:center;
+      background:#fff; border:3px solid var(--ring);
+      border-radius:24px; aspect-ratio:1/1;          /* 正方形を維持 */
+      min-height:120px;                              /* 最低サイズ（タッチ十分） */
+      font-weight:900; font-size:64px; letter-spacing:.5px;
+      box-shadow:0 8px 20px rgba(0,0,0,.06);
+      user-select:none;
+    }
+
+    /* + / - の縦並び */
+    .pm-col{
+      display:grid; grid-template-rows:1fr 1fr; gap:8px;
+      align-self:stretch;
+    }
+    .pm-btn{
+      display:flex; align-items:center; justify-content:center;
+      background:#fff; border:3px solid var(--ring);
+      border-radius:18px; font-weight:900; font-size:28px;
+      cursor:pointer; user-select:none;
+      min-height:56px;                 /* タッチターゲット確保 */
+      box-shadow:0 6px 14px rgba(0,0,0,.06);
+      transition:transform .04s ease-in;
+    }
+    .pm-btn:active{ transform:translateY(1px) }
+
+    /* 注文（保存）ボタン */
+    .order-btn{
+      border:none; border-radius:20px; padding:0 18px;
+      background:var(--accent); color:#fff; font-weight:900;
+      font-size:22px; cursor:pointer;
+      box-shadow:0 10px 22px rgba(255,145,77,.35);
+      display:flex; align-items:center; justify-content:center;
+      min-height:120px;                 /* 数量ボックスと高さを揃える */
+      transition:transform .04s ease-in, filter .12s ease-in;
+    }
+    .order-btn:active{ transform:translateY(1px) }
+    .order-btn:disabled{ filter:saturate(.2) brightness(.9); cursor:not-allowed }
+
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 12px; border-radius:999px; border:2px solid var(--ring);
+      background:#fff; font-weight:900;
+    }
+
+    /* 注文一覧 */
+    .order-list{display:grid; gap:10px; margin-top:8px}
+    .order-item{
+      display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
+      border:2px solid var(--ring); border-radius:16px; padding:10px 12px; background:#fff;
+    }
+    .order-main{ display:flex; gap:12px; align-items:baseline; flex-wrap:wrap }
+    .time{ font-weight:900; }
+    .item{ font-weight:900; }
+    .count{ font-weight:900; }
+    .btns{ display:flex; gap:8px; }
+    .btn{
+      border:none; border-radius:12px; padding:10px 14px; font-weight:900; cursor:pointer;
+      box-shadow:0 6px 14px rgba(0,0,0,.07);
+    }
+    .btn.cancel{ background:var(--danger); color:#fff; }
+    .btn.done{ background:var(--ok); color:#fff; }
+    .empty{
+      border:2px dashed var(--ring); background:#fff; color:var(--muted);
+      padding:18px; border-radius:16px; text-align:center; font-weight:800;
+    }
+    .note{font-size:12px; color:var(--muted)}
+    /* 既存CSSのどこかに追加 */
+    .pm-btn,
+    .order-btn {
+      touch-action: manipulation;     /* 素早い連打でもダブルタップズームを無効化 */
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    /* ===== ページ間ナビ（小さめボタン） ===== */
+    .topnav{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center; margin-bottom:8px;
+    }
+    .navbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 12px;
+      border-radius:999px; border:2px solid var(--ring);
+      background:#fff; color:var(--ink); text-decoration:none;
+      font-weight:900; font-size:14px; line-height:1;
+      min-height:40px;    /* スマホでも押しやすい */
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      transition:transform .04s ease-in, background .12s ease-in;
+    }
+    .navbtn:active{ transform:translateY(1px) }
+    .navbtn.primary{ background:var(--accent); color:#fff; border-color:transparent; }
+    .navbtn.ghost{ background:#fff; }
+    .navbtn.current{
+      background:#f4f0ea;
+      border-color:var(--ring);
+      cursor:default;
+      box-shadow:none;
+    }
+>>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
   </style>
 </head>
 <body>
   <div class="wrap">
+<<<<<<< HEAD
     <div class="head">
       <div class="title">
         <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
@@ -96,6 +250,273 @@
       }
     };
     render();
+=======
+    <nav class="topnav" aria-label="ページ移動">
+    <a class="navbtn ghost"   href="../index.html">ホーム</a>
+    <a class="navbtn ghost"   href="../kitchen/">調理場</a>
+    <span class="navbtn current" aria-current="page">受付</span>
+    <a class="navbtn ghost"   href="../profit/">売上管理</a>
+  </nav>
+    <h1>受付</h1>
+
+    <!-- 入力カード -->
+    <section class="card" aria-labelledby="order-title">
+      <h2 id="order-title">お好み焼き 注文</h2>
+      <p class="muted">丸い数値ボックスで個数を確認し、＋/−で調整、「注文」で登録します。</p>
+
+      <div class="row" style="justify-content:space-between">
+        <span class="badge">品目：<b>お好み焼き</b></span>
+        <span class="badge">選択中：<b id="previewQty">1</b> 個</span>
+      </div>
+
+      <!-- ★ 新しい数量操作列（横並び） -->
+      <div class="qty-row" role="group" aria-label="数量操作">
+        <!-- 数量の丸い正方形表示（中の数だけ差し替え） -->
+        <div id="display" class="qty-box" aria-live="polite" aria-label="現在の個数">1</div>
+
+        <!-- ＋ / − 縦並び -->
+        <div class="pm-col" aria-hidden="false">
+          <button class="pm-btn" id="plus1" aria-label="1個増やす">＋</button>
+          <button class="pm-btn" id="minus1" aria-label="1個減らす">−</button>
+        </div>
+
+        <!-- 注文（保存と同機能） -->
+        <button class="order-btn" id="save" aria-label="注文を保存">注文</button>
+      </div>
+
+      <p id="last" class="muted stamp" aria-live="polite" style="margin-top:8px"></p>
+    </section>
+
+    <!-- 注文一覧カード（アクティブ＝未完了のみを表示） -->
+    <section class="card" aria-labelledby="list-title">
+      <h2 id="list-title">受付中の注文（未完了）</h2>
+      <div id="orderList" class="order-list"></div>
+      <div id="empty" class="empty" style="display:none">まだ注文はありません</div>
+      <p class="note">
+        ※一覧は Realtime Database <code>okonomiOrders</code> から取得。<br>
+        「取り消し」はデータを削除します。「完了」は <code>status: "done"</code> を付けて一覧から除外します（データは残ります）。
+      </p>
+    </section>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+  const $ = (id) => document.getElementById(id);
+  const display = $('display');
+  const previewQty = $('previewQty');
+  const last = $('last');
+  const toast = $('toast');
+  const listEl = $('orderList');
+  const emptyEl = $('empty');
+
+  // ---- 個数状態（±のみ） ----
+  let qty = 1;
+  const clamp = (n) => Math.max(0, Math.min(999, n));
+  const paintQty = () => { display.textContent = qty; previewQty.textContent = qty; };
+
+  $('minus1').addEventListener('click', () => { qty = clamp(qty - 1); paintQty(); });
+  $('plus1').addEventListener('click', () => { qty = clamp(qty + 1); paintQty(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp' || e.key === '+') { qty = clamp(qty + 1); paintQty(); }
+    if (e.key === 'ArrowDown' || e.key === '-') { qty = clamp(qty - 1); paintQty(); }
+    if (e.key === 'Enter') { $('save').click(); }
+  });
+
+  const showToast = (msg) => {
+    toast.textContent = msg; toast.style.display = 'block';
+    setTimeout(()=> toast.style.display = 'none', 1200);
+  };
+
+  const formatTime = (ms) => {
+    const d = new Date(ms);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const hh = String(d.getHours()).padStart(2,'0');
+    const mm = String(d.getMinutes()).padStart(2,'0');
+    const ss = String(d.getSeconds()).padStart(2,'0');
+    return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
+  };
+
+  const renderEmpty = () => {
+    const hasItem = listEl.children.length > 0;
+    emptyEl.style.display = hasItem ? 'none' : 'block';
+  };
+
+  // ---- Firebase 初期化 ----
+  let db;
+  try{
+    if (!window.firebase) throw new Error('firebase SDKがロードされていません。/__/firebase/app-compat.js を確認してください。');
+    if (!firebase.apps.length) throw new Error('Firebase Appが初期化されていません。init.jsの読み込みを確認してください。');
+    if (typeof firebase.database !== 'function') throw new Error('firebase.database() が使えません（database-compatが読み込まれていない）');
+    db = firebase.database();
+  }catch(err){
+    console.error('[Firebase初期化エラー]', err);
+    alert('Firebaseの初期化に失敗しました。\n' + (err.message || err));
+    return;
+  }
+
+  // ---- 保存処理 ----
+  $('save').addEventListener('click', async () => {
+    if (!qty || qty < 1) { alert('1以上で保存してください'); return; }
+    try{
+      firebase.database().goOnline();
+      const ref = db.ref('okonomiOrders').push();
+      await ref.set({
+        item: 'お好み焼き',
+        count: qty,
+        status: 'active', // 未完了
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      last.textContent = `保存しました（ID: ${ref.key} / お好み焼き × ${qty}）`;
+      showToast('保存しました');
+      qty = 1; paintQty();
+    }catch(err){
+      console.error('❌ 保存エラー', err);
+      alert('保存に失敗しました: ' + (err.message || err));
+    }
+  });
+
+  // ---- 一覧（未完了のみ／古い順） ----
+  const nodeMap = new Map(); // id -> element
+
+  const makeOrderEl = (id, data) => {
+    const li = document.createElement('div');
+    li.className = 'order-item';
+    li.id = `order-${id}`;
+    li.dataset.ts = String(data.createdAt || 0); // 並べ替え用
+
+    const left = document.createElement('div');
+    left.className = 'order-main';
+
+    const time = document.createElement('span');
+    time.className = 'time stamp';
+    time.textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+
+    const item = document.createElement('span');
+    item.className = 'item';
+    item.textContent = data.item || '—';
+
+    const count = document.createElement('span');
+    count.className = 'count';
+    count.textContent = `× ${data.count ?? '—'}`;
+
+    left.append(time, item, count);
+
+    const right = document.createElement('div');
+    right.className = 'btns';
+
+    const btnCancel = document.createElement('button');
+    btnCancel.className = 'btn cancel';
+    btnCancel.textContent = '取り消し';
+    btnCancel.addEventListener('click', async () => {
+      if (!confirm('この注文を削除します。よろしいですか？')) return;
+      try{
+        await db.ref(`okonomiOrders/${id}`).remove();
+        showToast('削除しました');
+      }catch(err){
+        alert('削除に失敗しました: ' + (err.message || err));
+      }
+    });
+
+    const btnDone = document.createElement('button');
+    btnDone.className = 'btn done';
+    btnDone.textContent = '完了';
+    btnDone.addEventListener('click', async () => {
+      try{
+        await db.ref(`okonomiOrders/${id}`).update({
+          status: 'done',
+          completedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        showToast('完了にしました');
+      }catch(err){
+        alert('更新に失敗しました: ' + (err.message || err));
+      }
+    });
+
+    right.append(btnCancel, btnDone);
+    li.append(left, right);
+    return li;
+  };
+
+  // 古い順に差し込み
+  const insertSorted = (el) => {
+    const ts = Number(el.dataset.ts || '0');
+    const children = Array.from(listEl.children);
+    const idx = children.findIndex(child => Number(child.dataset.ts || '0') > ts);
+    if (idx === -1) listEl.appendChild(el); else listEl.insertBefore(el, children[idx]);
+  };
+
+  const upsertRow = (id, data) => {
+    if (data.status === 'done') {
+      const exist = nodeMap.get(id);
+      if (exist) { exist.remove(); nodeMap.delete(id); renderEmpty(); }
+      return;
+    }
+    let el = nodeMap.get(id);
+    if (!el) {
+      el = makeOrderEl(id, data);
+      nodeMap.set(id, el);
+      insertSorted(el);
+    } else {
+      el.dataset.ts = String(data.createdAt || 0);
+      el.querySelector('.time').textContent = data.createdAt ? formatTime(data.createdAt) : '—';
+      el.querySelector('.item').textContent = data.item || '—';
+      el.querySelector('.count').textContent = `× ${data.count ?? '—'}`;
+      el.remove();
+      insertSorted(el);
+    }
+    renderEmpty();
+  };
+
+  const removeRow = (id) => {
+    const el = nodeMap.get(id);
+    if (el) { el.remove(); nodeMap.delete(id); renderEmpty(); }
+  };
+
+  // ---- 可視状態でリアルタイム接続を制御 ----
+  let ref = null;
+  let attached = false;
+
+  const attachListeners = () => {
+    if (attached) return;
+    ref = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(50);
+
+    ref.on('child_added', (snap) => { upsertRow(snap.key, snap.val() || {}); });
+    ref.on('child_changed', (snap) => { upsertRow(snap.key, snap.val() || {}); });
+    ref.on('child_removed', (snap) => { removeRow(snap.key); });
+
+    attached = true;
+  };
+
+  const detachListeners = () => {
+    if (ref) ref.off();
+    attached = false;
+  };
+
+  function goActive() {
+    firebase.database().goOnline();
+    attachListeners();
+  }
+  function goIdle() {
+    detachListeners();
+    firebase.database().goOffline();
+  }
+
+  if (document.hidden) goIdle(); else goActive();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) goIdle(); else goActive();
+  });
+  window.addEventListener('pagehide', goIdle);
+  window.addEventListener('beforeunload', goIdle);
+
+  paintQty();
+  renderEmpty();
+});
+>>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
   </script>
 </body>
 </html>

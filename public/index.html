@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
+<<<<<<< HEAD
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -89,4 +90,131 @@
       </div>
     </main>
   </body>
+=======
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>学部祭 注文管理</title>
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fff3e0; --paper:#fffaf5; --ink:#4a3020; --muted:#8b5e34;
+  --accent:#ff7a1a; --accent-2:#ff944d; --accent-3:#ffb865;
+  --ring:#ff9a4d; --ok:#2f6f2f; --danger:#8a1a1a;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:linear-gradient(180deg,var(--bg),#fff);
+  color:var(--ink);font-family:'M PLUS Rounded 1c',system-ui,-apple-system,sans-serif
+}
+header{max-width:960px;margin:24px auto 0;padding:0 16px;display:flex;align-items:center;gap:14px}
+.logo{width:64px;height:64px}
+h1{font-size:clamp(28px,5vw,40px);margin:0 0 4px 0;letter-spacing:.5px}
+.sub{color:#835a41;margin:0}
+.doodle{margin-left:auto}
+
+.main{max-width:960px;margin:24px auto;padding:0 16px}
+.panel{
+  background:var(--paper);border-radius:24px;box-shadow:0 10px 30px rgba(0,0,0,.08);
+  padding:28px;text-align:center
+}
+
+/* ====== 正方形タイルボタン ====== */
+.grid{
+  display:grid;gap:16px;
+  grid-template-columns: repeat( auto-fit, minmax(160px, 1fr) );
+}
+.tile{
+  position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  aspect-ratio:1 / 1; /* 正方形 */
+  border-radius:18px; text-decoration:none; color:#fff; font-weight:900;
+  box-shadow:0 8px 20px rgba(255,122,26,.25);
+  transition:transform .06s ease, box-shadow .12s ease;
+  outline: none;
+}
+.tile:hover{ transform:translateY(-1px); box-shadow:0 10px 24px rgba(0,0,0,.12) }
+.tile:focus-visible{ box-shadow:0 0 0 4px var(--ring), 0 8px 20px rgba(0,0,0,.08) }
+.tile svg{ width:36px; height:36px; margin-bottom:10px }
+.tile span{ font-size:18px }
+
+/* カラー・アクセント */
+.tile.rec { background: var(--accent); }
+.tile.kit { background: var(--accent-2); }
+.tile.pro { background: var(--accent-3); color:#4a3020; box-shadow:0 8px 20px rgba(255,184,101,.35) }
+.tile.pro:hover{ box-shadow:0 10px 24px rgba(0,0,0,.12) }
+
+/* フッタ */
+footer{max-width:960px;margin:18px auto 28px;color:#86644b;font-size:12px;text-align:center}
+
+/* 小さめ端末の微調整 */
+@media (max-width:420px){
+  .grid{ grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<header>
+  <!-- デフォルメお好み焼きSVG -->
+  <svg class="logo" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <circle cx="32" cy="34" r="22" fill="#6b3a1e"/>
+    <circle cx="32" cy="32" r="22" fill="#b56a2a"/>
+    <path d="M12 28c12 8 28 8 40 0" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <path d="M14 36c10 6 26 6 36 0" stroke="#fff" stroke-width="4" stroke-linecap="round" fill="none"/>
+    <circle cx="20" cy="24" r="2" fill="#2f6f2f"/>
+    <circle cx="44" cy="24" r="2" fill="#2f6f2f"/>
+    <circle cx="28" cy="42" r="2" fill="#2f6f2f"/>
+    <circle cx="36" cy="40" r="2" fill="#2f6f2f"/>
+  </svg>
+  <div>
+    <h1>学部祭 注文管理</h1>
+    <p class="sub">受付・調理場・売上管理を正方形タイルでナビゲート</p>
+  </div>
+    <rect x="6" y="22" width="108" height="24" rx="12" fill="#ffcf9e" stroke="#ff9a4d"/>
+    <circle cx="20" cy="34" r="8" fill="#ff7a1a"/>
+    <rect x="90" y="18" width="16" height="10" rx="3" fill="#6b3a1e"/>
+  </svg>
+</header>
+
+<main class="main">
+  <section class="panel" aria-label="主要ナビゲーション">
+    <div class="grid">
+      <a class="tile rec" href="/reception/index.html" aria-label="受付ページへ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 5 17 10"/>
+          <line x1="12" y1="5" x2="12" y2="19"/>
+        </svg>
+        <span>受付ページ</span>
+      </a>
+
+      <a class="tile kit" href="/kitchen/index.html" aria-label="調理場ページへ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="14" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        <span>調理場ページ</span>
+      </a>
+
+      <a class="tile pro" href="/profit/index.html" aria-label="売上管理ページへ">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/>
+          <rect x="7" y="12" width="3" height="6" rx="1"/>
+          <rect x="12" y="9" width="3" height="9" rx="1"/>
+          <rect x="17" y="6" width="3" height="12" rx="1"/>
+        </svg>
+        <span>売上管理</span>
+      </a>
+    </div>
+  </section>
+</main>
+
+<footer>© HSLab</footer>
+</body>
+>>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
 </html>

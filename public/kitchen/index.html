@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
+<<<<<<< HEAD
   <title>調理場 | 学部祭</title>
   <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
   <script defer src="/__/firebase/12.4.0/firebase-auth-compat.js"></script>
@@ -34,11 +35,98 @@
     .item{
       padding:10px 12px; border:2px solid var(--ring); border-radius:14px; background:#fffdf9;
       display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px;
+=======
+  <title>調理場 | 注文一覧</title>
+
+  <!-- Firebase (Realtime Database only) -->
+  <script defer src="/__/firebase/12.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/12.4.0/firebase-database-compat.js"></script>
+  <!-- エミュレータ使用時は ?useEmulator=true、本番では外す -->
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+
+  <!-- 受付側と同じ丸め＆太字系フォント -->
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@800;900&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#fff7ed; --paper:#ffffff; --ink:#3f2817; --ring:#e2c9a4;
+      --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
+      line-height:1.6; padding:20px;
+    }
+    .wrap{width:min(980px,100%); margin:0 auto; display:grid; gap:18px}
+    .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
+    h1{margin:0 0 6px; font-weight:900}
+    h2{margin:0 0 10px; font-weight:900}
+    .muted{color:var(--muted)}
+    .stamp{font-variant-numeric:tabular-nums}
+    nav a{margin-right:12px; color:var(--muted); text-decoration:none; font-weight:800}
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 12px; border-radius:999px; border:2px solid var(--ring);
+      background:#fff; font-weight:900;
+    }
+
+    /* 注文リストの見た目（受付と同系統） */
+    .lists{ display:grid; gap:18px }
+    .section-title{ display:flex; align-items:center; justify-content:space-between; gap:8px }
+    .order-list{ display:grid; gap:12px; }
+    .empty{
+      border:2px dashed var(--ring); background:#fff; color:var(--muted);
+      padding:18px; border-radius:16px; text-align:center; font-weight:800;
+    }
+
+    .order{
+      background:#fff; border:2px solid var(--ring); border-radius:16px; padding:12px;
+      display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
+    }
+    .order-main{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:baseline }
+    .orderno{ font-weight:900; }
+    .time{ font-weight:900; }
+    .items{ display:flex; flex-wrap:wrap; gap:10px 12px; }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px; border:2px solid var(--ring); background:#fff; font-weight:900;
+    }
+    .qty{ font-weight:900; }
+    .right{ display:flex; align-items:center; gap:8px; }
+    .status-chip{
+      padding:6px 10px; border-radius:999px; font-weight:900;
+      background:#fff; border:2px solid var(--ring); color:var(--muted);
+    }
+    .topnav{
+      display:flex; gap:10px; flex-wrap:wrap;
+      justify-content:flex-end; align-items:center; margin-bottom:8px;
+    }
+    .navbtn{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:8px 12px;
+      border-radius:999px; border:2px solid var(--ring);
+      background:#fff; color:var(--ink); text-decoration:none;
+      font-weight:900; font-size:14px; line-height:1;
+      min-height:40px;    /* スマホでも押しやすい */
+      box-shadow:0 4px 10px rgba(0,0,0,.06);
+      transition:transform .04s ease-in, background .12s ease-in;
+    }
+    .navbtn:active{ transform:translateY(1px) }
+    .navbtn.primary{ background:var(--accent); color:#fff; border-color:transparent; }
+    .navbtn.ghost{ background:#fff; }
+    .navbtn.current{
+      background:#f4f0ea;
+      border-color:var(--ring);
+      cursor:default;
+      box-shadow:none;
+>>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
     }
   </style>
 </head>
 <body>
   <div class="wrap">
+<<<<<<< HEAD
     <div class="head">
       <div class="title">
         <svg class="okonomi" viewBox="0 0 120 120" aria-hidden="true">
@@ -99,6 +187,213 @@
           return `<div class="item"><span>🍽️ ${x.qty} 個</span><span class="muted">${t.toLocaleString()}</span></div>`;
         }).join('');
       });
+=======
+    <nav class="topnav" aria-label="ページ移動">
+    <a class="navbtn ghost"   href="../index.html">ホーム</a>
+    <span class="navbtn current" aria-current="page">調理場</span>
+    <a class="navbtn ghost"   href="../reception/">受付</a>
+    <a class="navbtn ghost"   href="../profit/">売上管理</a>
+    
+  </nav>
+    <h1>調理場 <span id="conn" class="badge">注文記録</span></h1>
+    <p class="muted">Realtime Database の注文を自動更新で表示します。未完了は上、完了済みは下。どちらも「古い順」です。</p>
+
+    <section class="card">
+      <div class="lists">
+        <div>
+          <div class="section-title">
+            <h2>未完了の注文</h2>
+            <span class="badge">件数: <b id="count-active">0</b></span>
+          </div>
+          <div id="list-active" class="order-list"></div>
+          <div id="empty-active" class="empty" style="display:none">未完了の注文はありません</div>
+        </div>
+
+        <div>
+          <div class="section-title">
+            <h2>完了済みの注文</h2>
+            <span class="badge">件数: <b id="count-done">0</b></span>
+          </div>
+          <div id="list-done" class="order-list"></div>
+          <div id="empty-done" class="empty" style="display:none">完了済みの注文はまだありません</div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 任意：受付側と同じ接続バッジ等を使いたい場合 -->
+  <script src="/app/shared.js"></script>
+
+  <script>
+    // 接続バッジ（shared.jsに bindConnectionBadge がある場合）
+    try{
+      if (typeof bindConnectionBadge === 'function') {
+        bindConnectionBadge(document.getElementById('conn'));
+      }
+    }catch(e){ /* なくてもOK */ }
+
+    const $ = (id)=>document.getElementById(id);
+    const listActive = $('list-active');
+    const listDone   = $('list-done');
+    const emptyActive = $('empty-active');
+    const emptyDone   = $('empty-done');
+    const cntActive = $('count-active');
+    const cntDone   = $('count-done');
+
+    // 表示用：時刻フォーマット
+    const fmt = (ms)=>{
+      if(!ms) return '—';
+      const d = new Date(ms);
+      const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+      const hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0'), ss=String(d.getSeconds()).padStart(2,'0');
+      return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
+    };
+
+    // ノード→要素化
+    function orderEl(id, o){
+      const el = document.createElement('div');
+      el.className = 'order';
+      el.id = `ord-${id}`;
+
+      const left = document.createElement('div');
+      left.className = 'order-main';
+
+      const no = document.createElement('span');
+      no.className = 'orderno';
+      no.textContent = o.orderNo ? `#${o.orderNo}` : `ID:${id.slice(-6)}`;
+
+      const time = document.createElement('span');
+      time.className = 'time stamp';
+      time.textContent = fmt(o.createdAt);
+
+      const itemsBox = document.createElement('div');
+      itemsBox.className = 'items';
+      // menu: [{item, qty, note}]
+      (Array.isArray(o.menu) ? o.menu : []).forEach(it=>{
+        const pill = document.createElement('span');
+        pill.className = 'pill';
+        const nm = document.createElement('span'); nm.textContent = it.item || '—';
+        const q  = document.createElement('span'); q.className = 'qty'; q.textContent = `×${it.qty ?? '-'}`;
+        pill.append(nm, q);
+        itemsBox.appendChild(pill);
+      });
+
+      left.append(no, time, itemsBox);
+
+      const right = document.createElement('div');
+      right.className = 'right';
+      const st = document.createElement('span');
+      st.className = 'status-chip';
+      st.textContent = (o.status === 'done') ? '完了' : (o.status || 'new');
+      right.appendChild(st);
+
+      el.append(left, right);
+      return el;
+    }
+
+    // メモリ上で全集約→セクションごとに古い順で描画
+    const mem = new Map(); // id -> order
+
+    function render(){
+      // partition
+      const active = [], done = [];
+      mem.forEach((v, id)=>{
+        if(v.status === 'done') done.push({id, ...v});
+        else active.push({id, ...v}); // 'new' 他も未完了扱い
+      });
+
+      // 古い順（createdAt昇順）
+      const byOldest = (a,b)=> (a.createdAt??0) - (b.createdAt??0);
+      active.sort(byOldest);
+      done.sort(byOldest);
+
+      // DOM再構築（シンプルに作り直し）
+      listActive.innerHTML = '';
+      active.forEach(o=> listActive.appendChild(orderEl(o.id, o)));
+      listDone.innerHTML = '';
+      done.forEach(o=> listDone.appendChild(orderEl(o.id, o)));
+
+      // 件数 & 空表示
+      cntActive.textContent = active.length;
+      cntDone.textContent = done.length;
+      emptyActive.style.display = active.length ? 'none' : 'block';
+      emptyDone.style.display   = done.length ? 'none' : 'block';
+    }
+
+    // Firebase購読
+   document.addEventListener('DOMContentLoaded', () => {
+  if (!window.firebase) { alert('Firebase SDKが読み込まれていません'); return; }
+  if (!firebase.apps.length) { alert('Firebase Appが初期化されていません'); return; }
+  if (typeof firebase.database !== 'function') { alert('Realtime Databaseが使えません'); return; }
+
+  const db = firebase.database();
+  let refs = [];          // 複数参照に対応
+  let watching = false;
+
+  const toModelFromOkonomi = (v) => ({
+    orderNo: null,
+    name: v.name || '',
+    menu: [{ item: v.item || 'お好み焼き', qty: Number.isFinite(v.count) ? v.count : 1, note: v.note || '' }],
+    status: v.status === 'done' ? 'done' : 'new',
+    createdAt: v.createdAt || 0,
+  });
+
+  const toModelFromOrders = (v) => ({
+    orderNo: v.orderNo ?? null,
+    name: v.name || '',
+    menu: Array.isArray(v.menu) ? v.menu : [],
+    status: v.status === 'done' ? 'done' : (v.status || 'new'),
+    createdAt: v.createdAt || 0,
+  });
+
+  let stopWatch = () => {};
+
+  function startWatch() {
+    if (watching) return;
+
+    // --- ここで必要な参照を追加 ---
+    const refOk = db.ref('okonomiOrders').orderByChild('createdAt').limitToLast(200);
+    // もし /orders も読むならコメントアウト解除
+    // const refOrders = db.ref('orders').orderByChild('createdAt').limitToLast(200);
+
+    const onAddOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
+    const onChgOk = (s) => { mem.set(`ok-${s.key}`, toModelFromOkonomi(s.val()||{})); render(); };
+    const onDelOk = (s) => { mem.delete(`ok-${s.key}`); render(); };
+
+    refOk.on('child_added', onAddOk);
+    refOk.on('child_changed', onChgOk);
+    refOk.on('child_removed', onDelOk);
+    refs.push(refOk);
+
+    // /orders を使う場合
+    // const onAddOr = (s) => { mem.set(`or-${s.key}`, toModelFromOrders(s.val()||{})); render(); };
+    // const onChgOr = (s) => { mem.set(`or-${s.key}`, toModelFromOrders(s.val()||{})); render(); };
+    // const onDelOr = (s) => { mem.delete(`or-${s.key}`); render(); };
+    // refOrders.on('child_added', onAddOr);
+    // refOrders.on('child_changed', onChgOr);
+    // refOrders.on('child_removed', onDelOr);
+    // refs.push(refOrders);
+
+    stopWatch = () => {
+      refs.forEach(r => r.off());
+      refs = [];
+      watching = false;
+    };
+    watching = true;
+  }
+
+  function goActive() { firebase.database().goOnline(); startWatch(); }
+  function goIdle()   { stopWatch(); firebase.database().goOffline(); }
+
+  if (document.hidden) goIdle(); else goActive();
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) goIdle(); else goActive();
+  });
+  window.addEventListener('pagehide', goIdle);
+  window.addEventListener('beforeunload', goIdle);
+});
+>>>>>>> f6b8374f383a3512252fd69618e614eb916ef02a
   </script>
 </body>
 </html>
