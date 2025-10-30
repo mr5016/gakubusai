@@ -19,12 +19,24 @@
       --accent:#ff914d; --muted:#8b5e34; --ok:#18a957; --danger:#e23d3d;
     }
     *{box-sizing:border-box}
-    body{
-      margin:0; background:var(--bg); color:var(--ink);
-      font-family:"M PLUS Rounded 1c", system-ui, sans-serif;
-      line-height:1.6; padding:20px;
-    }
-    .wrap{width:min(880px,100%); margin:0 auto; display:grid; gap:18px}
+    body {
+    margin: 0;
+    padding: 0; /* ← スマホのズレ防止 */
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "M PLUS Rounded 1c", system-ui, sans-serif;
+    line-height: 1.6;
+  }
+
+  .wrap {
+    width: min(880px, 100%);
+    margin: 0 auto;
+    display: grid;
+    gap: 18px;
+    padding: 20px; /* ← body から移動してここに設定 */
+    max-width: 100%;
+    overflow-x: hidden; /* ← さらにズレ防止（安全策） */
+  }
     .card{background:var(--paper); border:2px solid var(--ring); border-radius:22px; padding:18px}
     h1{margin:0 0 6px; font-weight:900}
     h2{margin:0 0 10px; font-weight:900}
@@ -211,7 +223,7 @@
     <!-- 入力カード -->
     <section class="card" aria-labelledby="order-title">
       <h2 id="order-title">お好み焼き 注文</h2>
-      <p class="muted">丸い数値ボックスで個数を確認し、＋/−で調整。「注文」で登録します。必要なら「整理券つける」をONにして発行。</p>
+      
 
       <div class="row" style="justify-content:space-between">
         <span class="badge">品目：<b>お好み焼き</b></span>
@@ -247,11 +259,7 @@
       <h2 id="list-title">受付中の注文（未完了）</h2>
       <div id="orderList" class="order-list"></div>
       <div id="empty" class="empty" style="display:none">まだ注文はありません</div>
-      <p class="note">
-        ※一覧は <code>okonomiOrders</code> から取得。<br>
-        「取り消し」はデータを削除。「完了」は <code>status: "done"</code> を付けて一覧から除外します（データは残ります）。<br>
-        ※ 整理券は <code>ticketNo</code> に保存されます。
-      </p>
+      
     </section>
   </div>
 
