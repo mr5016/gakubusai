@@ -82,6 +82,43 @@
       touch-action: manipulation; -webkit-user-select:none; user-select:none;
     }
 
+    /* ===== 完了注文リスト ===== */
+    .section-title{ display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .order-list{ display:grid; gap:12px; margin-top:8px; }
+    .order{
+      background:#fff; border:2px solid var(--ring); border-radius:16px; padding:12px;
+      display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;
+    }
+    .order-main{ display:flex; flex-wrap:wrap; gap:10px 14px; align-items:baseline }
+    .time{ font-weight:900; }
+    .items{ display:flex; flex-wrap:wrap; gap:10px 12px; }
+    .pill{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius:999px; border:2px solid var(--ring); background:#fff; font-weight:900;
+    }
+    .qty{ font-weight:900; }
+    .empty{
+      border:2px dashed var(--ring); background:#fff; color:var(--muted);
+      padding:18px; border-radius:16px; text-align:center; font-weight:800;
+    }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:8px 12px; border-radius:999px; border:2px solid var(--ring);
+      background:#fff; font-weight:900;
+    }
+    /* 整理券バッジ（濃いオレンジ×白文字） */
+    .ticket-chip{
+      display:inline-flex; align-items:center; justify-content:center;
+      padding:6px 12px; border-radius:12px; border:2px solid transparent;
+      font-weight:900; font-size:16px; line-height:1; letter-spacing:.2px;
+      background:var(--accent); color:#fff;
+      box-shadow:0 4px 12px rgba(255,145,77,.35);
+    }
+    .status-chip{
+      padding:6px 10px; border-radius:999px; font-weight:900;
+      background:#fff; border:2px solid var(--ring); color:var(--muted);
+    }
+
     .note{font-size:12px; color:var(--muted)}
   </style>
 </head>
@@ -100,7 +137,7 @@
     <!-- 集計カード -->
     <section class="card" aria-labelledby="sum-title">
       <h2 id="sum-title">完了注文の集計</h2>
-      <p class="muted">Realtime Database の <code>okonomiOrders</code> から <code>status: "done"</code> のみを集計します。</p>
+      <p class="muted">Realtime Database の <code>okonomiOrders</code> から <code>status: "done"</code> のみを集計・表示します。</p>
 
       <div class="price-row" style="margin-bottom:10px">
         <label for="unitPrice" class="muted" style="font-weight:900">単価</label>
@@ -121,9 +158,19 @@
 
       <p id="last" class="muted stamp" style="margin-top:10px"></p>
       <p class="note">
-        ※「受付」ページで「完了」ボタンを押すと、この集計に反映されます。<br>
-        ※ 単価はここで変更できます（ページを再読み込みすると初期値に戻ります）。
+        ※「受付」ページで「完了」にした注文だけが一覧に表示・集計されます。<br>
+        ※ 単価はここで変更できます（リロードで初期値に戻ります）。
       </p>
+    </section>
+
+    <!-- 完了注文リスト -->
+    <section class="card" aria-labelledby="list-title">
+      <div class="section-title">
+        <h2 id="list-title">完了済みの注文一覧</h2>
+        <span class="badge">件数: <b id="doneCount">0</b></span>
+      </div>
+      <div id="doneList" class="order-list"></div>
+      <div id="doneEmpty" class="empty" style="display:none">完了済みの注文はまだありません</div>
     </section>
   </div>
 
@@ -148,18 +195,27 @@
     const totalRevenueEl = $('totalRevenue');
     const unitPriceInput = $('unitPrice');
 
+    // 完了リスト用
+    const doneList = $('doneList');
+    const doneEmpty = $('doneEmpty');
+    const doneCount = $('doneCount');
+
     const showToast = (msg) => {
       toast.textContent = msg; toast.style.display = 'block';
       setTimeout(()=> toast.style.display = 'none', 1200);
     };
 
     const formatJPY = (n) => Number(n || 0).toLocaleString('ja-JP', { style:'currency', currency:'JPY', maximumFractionDigits:0 });
-    const renderTotals = () => {
-      const count = Array.from(doneMap.values()).reduce((a,b)=>a+b, 0);
-      totalCountEl.textContent = count;
-      const unit = Math.max(0, Number(unitPriceInput.value)||0);
-      totalRevenueEl.textContent = formatJPY(count * unit);
-      last.textContent = `最終更新: ${new Date().toLocaleString('ja-JP')}`;
+    const formatTime = (ms) => {
+      if(!ms) return '—';
+      const d = new Date(ms);
+      const y = d.getFullYear();
+      const m = String(d.getMonth()+1).padStart(2,'0');
+      const dd = String(d.getDate()).padStart(2,'0');
+      const hh = String(d.getHours()).padStart(2,'0');
+      const mm = String(d.getMinutes()).padStart(2,'0');
+      const ss = String(d.getSeconds()).padStart(2,'0');
+      return `${y}/${m}/${dd} ${hh}:${mm}:${ss}`;
     };
 
     // Firebase 初期化
@@ -175,12 +231,73 @@
       return;
     }
 
-    // 集計用マップ（done のみ保持）
-    const doneMap = new Map(); // id -> count(number)
+    // 集計 & リスト用のメモリ
+    const doneCountMap = new Map(); // id -> count(number)（集計用）
+    const doneMem = new Map();      // id -> data（表示用）
 
     const getCount = (data) => {
       const c = Number(data && data.count);
       return Number.isFinite(c) && c > 0 ? c : 0;
+    };
+
+    const renderTotals = () => {
+      const count = Array.from(doneCountMap.values()).reduce((a,b)=>a+b, 0);
+      totalCountEl.textContent = count;
+      const unit = Math.max(0, Number(unitPriceInput.value)||0);
+      totalRevenueEl.textContent = formatJPY(count * unit);
+      last.textContent = `最終更新: ${new Date().toLocaleString('ja-JP')}`;
+    };
+
+    const orderEl = (o) => {
+      const el = document.createElement('div');
+      el.className = 'order';
+
+      const left = document.createElement('div');
+      left.className = 'order-main';
+
+      // 整理券（あれば表示）
+      if (o.ticketNo != null) {
+        const chip = document.createElement('span');
+        chip.className = 'ticket-chip';
+        chip.textContent = `#${o.ticketNo}`;
+        left.append(chip);
+      }
+
+      // 完了時刻 or 作成時刻
+      const time = document.createElement('span');
+      time.className = 'time stamp';
+      time.textContent = formatTime(o.completedAt || o.createdAt);
+      left.append(time);
+
+      // 品目と個数（今回はお好み焼き固定）
+      const itemsBox = document.createElement('div');
+      itemsBox.className = 'items';
+      const pill = document.createElement('span');
+      pill.className = 'pill';
+      const nm = document.createElement('span'); nm.textContent = o.item || 'お好み焼き';
+      const q  = document.createElement('span'); q.className = 'qty'; q.textContent = `×${o.count ?? '-'}`;
+      pill.append(nm, q);
+      itemsBox.appendChild(pill);
+      left.append(itemsBox);
+
+      const right = document.createElement('div');
+      const st = document.createElement('span');
+      st.className = 'status-chip';
+      st.textContent = '完了';
+      right.appendChild(st);
+
+      el.append(left, right);
+      return el;
+    };
+
+    const renderList = () => {
+      const arr = Array.from(doneMem.values());
+      // 古い順（completedAt優先、無ければcreatedAt）
+      arr.sort((a,b)=> ((a.completedAt??a.createdAt??0) - (b.completedAt??b.createdAt??0)));
+      doneList.innerHTML = '';
+      arr.forEach(o => doneList.appendChild(orderEl(o)));
+      doneCount.textContent = arr.length;
+      doneEmpty.style.display = arr.length ? 'none' : 'block';
     };
 
     // リスナー
@@ -190,21 +307,42 @@
     const onAdded = (snap) => {
       const id = snap.key;
       const val = snap.val() || {};
-      doneMap.set(id, getCount(val));
+      // 集計
+      doneCountMap.set(id, getCount(val));
+      // 表示データ
+      doneMem.set(id, {
+        item: val.item || 'お好み焼き',
+        count: getCount(val),
+        ticketNo: (val.ticketNo ?? null),
+        status: 'done',
+        createdAt: val.createdAt || 0,
+        completedAt: val.completedAt || 0
+      });
       renderTotals();
+      renderList();
     };
     const onChanged = (snap) => {
       const id = snap.key;
       const val = snap.val() || {};
-      // このクエリは status == "done" 固定なので、done→done の更新のみここに来る
-      doneMap.set(id, getCount(val));
+      // このクエリは done 固定なので、done→done の更新のみ
+      doneCountMap.set(id, getCount(val));
+      doneMem.set(id, {
+        item: val.item || 'お好み焼き',
+        count: getCount(val),
+        ticketNo: (val.ticketNo ?? null),
+        status: 'done',
+        createdAt: val.createdAt || 0,
+        completedAt: val.completedAt || 0
+      });
       renderTotals();
+      renderList();
     };
     const onRemoved = (snap) => {
       const id = snap.key;
-      // done から外れる（削除 or status変更）とここに来る
-      doneMap.delete(id);
+      doneCountMap.delete(id);
+      doneMem.delete(id);
       renderTotals();
+      renderList();
     };
 
     const attach = () => {
@@ -237,6 +375,7 @@
 
     // 初期描画
     renderTotals();
+    renderList();
   });
   </script>
 </body>
