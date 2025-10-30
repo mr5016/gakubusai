@@ -176,6 +176,24 @@
       background:#f4f0ea; border-color:var(--ring);
       cursor:default; box-shadow:none;
     }
+    .ticket-ctrl{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:44px; height:44px; border-radius:12px;
+    border:2px solid var(--ring); background:#fff; font-weight:900; font-size:20px;
+    cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,.06);
+    transition:transform .04s ease-in, background .12s ease-in;
+    touch-action: manipulation; -webkit-user-select:none; user-select:none;
+  }
+  .ticket-ctrl:active{ transform:translateY(1px) }
+
+  /* 一覧の整理券チップを“濃いオレンジの角丸バッジ＆白文字”で大きく */
+  .ticket-chip{
+    display:inline-flex; align-items:center; justify-content:center;
+    padding:6px 12px; border-radius:12px; border:2px solid transparent;
+    font-weight:900; font-size:16px; line-height:1; letter-spacing:.2px;
+    background:var(--accent); color:#fff; /* 濃いオレンジ × 白文字 */
+    box-shadow:0 4px 12px rgba(255,145,77,.35);
+  }
   </style>
 </head>
 <body>
@@ -212,8 +230,13 @@
 
       <!-- 整理券操作 -->
       <div class="ticket-row" role="group" aria-label="整理券">
-        <span class="ticket-badge">次の整理券：<b id="nextTicket">—</b> 番（1〜20で循環）</span>
-        <button id="ticketToggle" class="ticket-toggle" aria-pressed="false">整理券つける（OFF）</button>
+        <div class="ticket-row" role="group" aria-label="整理券">
+      <button id="decTicket" class="ticket-ctrl" aria-label="整理券番号を1つ下げる">−</button>
+      <span class="ticket-badge">次の整理券：<b id="nextTicket">—</b> 番（1〜20で循環）</span>
+      <button id="incTicket" class="ticket-ctrl" aria-label="整理券番号を1つ上げる">＋</button>
+
+      <button id="ticketToggle" class="ticket-toggle" aria-pressed="false">整理券つける（OFF）</button>
+    </div>
       </div>
 
       <p id="last" class="muted stamp" aria-live="polite" style="margin-top:8px"></p>
@@ -310,6 +333,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const safe = Number.isInteger(v) && v >= TICKET_MIN && v <= TICKET_MAX ? v : TICKET_MIN;
     nextTicketEl.textContent = String(safe);
   });
+  // 次番号をトランザクションで安全に +1 / -1（循環）
+  const bumpTicketNext = (delta) => {
+    const TICKET_MIN = 1, TICKET_MAX = 20;
+    return ticketRef.transaction(current => {
+      let cur = Number(current);
+      if (!Number.isInteger(cur) || cur < TICKET_MIN || cur > TICKET_MAX) cur = TICKET_MIN;
+      let next = cur + delta;
+      if (next > TICKET_MAX) next = TICKET_MIN;
+      if (next < TICKET_MIN) next = TICKET_MAX;
+      return next;
+    });
+  };
+
+// 手動調整ボタン
+$('incTicket').addEventListener('click', () => { bumpTicketNext(+1); });
+$('decTicket').addEventListener('click', () => { bumpTicketNext(-1); });
+
+
 
   // トグルUI
   const paintTicketToggle = () => {
