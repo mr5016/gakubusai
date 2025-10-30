@@ -448,7 +448,7 @@ $('decTicket').addEventListener('click', () => { bumpTicketNext(-1); });
     if (data.ticketNo != null) {
       const chip = document.createElement('span');
       chip.className = 'ticket-chip';
-      chip.textContent = `#${data.ticketNo}`;
+      chip.textContent = `${data.ticketNo}`;
       left.append(chip);
     }
 
