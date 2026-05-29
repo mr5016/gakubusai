@@ -67,3 +67,9 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# データ系
+*.csv
+*.tsv
+*.xlsx
+*.xls
